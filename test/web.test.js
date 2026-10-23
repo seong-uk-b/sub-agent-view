@@ -76,7 +76,7 @@ test('missingAfter tells which line number to fetch from when the server has mor
 test('the "no sessions" overlay is hidden when the hidden attribute is set, so it cannot swallow clicks on characters', () => {
   const css = fs.readFileSync(new URL('../web/styles.css', import.meta.url), 'utf8');
   // .empty sets display:grid, which beats the UA [hidden] rule; the sheet must restore display:none for [hidden].
-  assert.match(css, /\.empty\[hidden\]\s*\{[^}]*display\s*:\s*none/);
+  assert.match(css, /#empty\[hidden\]\s*\{[^}]*display\s*:\s*none/);
 });
 
 test('liveAgentCount leaves out agents that have already left the office', () => {
@@ -89,4 +89,11 @@ test('status bar title truncates with an ellipsis instead of overlapping the chi
   const css = fs.readFileSync(new URL('../web/styles.css', import.meta.url), 'utf8');
   const rule = /\.sb-title\{([^}]*)\}/.exec(css)?.[1] || '';
   assert.match(rule, /overflow\s*:\s*hidden/); assert.match(rule, /text-overflow\s*:\s*ellipsis/); assert.match(rule, /min-width\s*:\s*0/);
+});
+
+test('the "no sessions" overlay rule is scoped to #empty so it cannot restyle empty desks (.desk.empty)', () => {
+  const css = fs.readFileSync(new URL('../web/styles.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /(^|\n)\.empty\s*\{/, 'bare .empty selector would also match .desk.empty');
+  assert.match(css, /#empty\s*\{[^}]*z-index\s*:\s*8/);
+  assert.match(css, /#empty\[hidden\]\s*\{[^}]*display\s*:\s*none/);
 });
