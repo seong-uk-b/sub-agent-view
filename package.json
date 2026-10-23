@@ -1,0 +1,12 @@
+{
+  "name": "sub-agent-view",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test test/",
+    "install-hooks": "node server/index.js --install-hooks"
+  }
+}
