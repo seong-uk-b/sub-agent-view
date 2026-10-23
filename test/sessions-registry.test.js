@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { sessionsDir, readRegistry, isPidAlive } from '../server/lib/sessions-registry.js';
+import { sessionsDir, readRegistry, isPidAlive, procStartOf } from '../server/lib/sessions-registry.js';
 
 async function makeDir(files) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sav-sessions-'));
@@ -40,4 +40,19 @@ test('isPidAlive is true for this process and false for an impossible pid', () =
   assert.equal(isPidAlive(2 ** 22 - 1), false);
   assert.equal(isPidAlive(0), false);
   assert.equal(isPidAlive(NaN), false);
+});
+
+test('on Linux, isPidAlive rejects a pid whose /proc start time differs from the registry procStart (pid reuse / zombie guard)', { skip: process.platform !== 'linux' }, () => {
+  const mine = procStartOf(process.pid);
+  assert.match(String(mine), /^\d+$/);
+  assert.equal(isPidAlive(process.pid, { procStart: mine }), true);
+  assert.equal(isPidAlive(process.pid, { procStart: '1' }), false);
+  assert.equal(isPidAlive(process.pid), true, 'without procStart it falls back to the signal-0 check');
+});
+
+test('readRegistry passes the entry procStart into the liveness check', async () => {
+  const dir = await makeDir({ '5.json': JSON.stringify({ pid: 5, sessionId: 's', procStart: '777' }) });
+  const seen = [];
+  await readRegistry(dir, { isAlive: (pid, opts) => { seen.push([pid, opts?.procStart]); return true; } });
+  assert.deepEqual(seen, [[5, '777']]);
 });
