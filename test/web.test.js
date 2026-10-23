@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { assignSeats, sheetFor, tabTone, sortSessions } from '../web/office.js';
 import { changedFiles, mergeLines, missingAfter, DOM_LINE_CAP } from '../web/terminal.js';
 
@@ -70,4 +71,10 @@ test('missingAfter tells which line number to fetch from when the server has mor
   assert.equal(missingAfter([{ n: 10 }], 10), null);   // 최신
   assert.equal(missingAfter([], 3), 0);                // 비어 있으면 처음부터
   assert.equal(missingAfter([], 0), null);
+});
+
+test('the "no sessions" overlay is hidden when the hidden attribute is set, so it cannot swallow clicks on characters', () => {
+  const css = fs.readFileSync(new URL('../web/styles.css', import.meta.url), 'utf8');
+  // .empty sets display:grid, which beats the UA [hidden] rule; the sheet must restore display:none for [hidden].
+  assert.match(css, /\.empty\[hidden\]\s*\{[^}]*display\s*:\s*none/);
 });
