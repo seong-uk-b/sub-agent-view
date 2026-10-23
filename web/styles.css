@@ -1,3 +1,5 @@
+@font-face{font-family:'Galmuri11';src:url('fonts/Galmuri11.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Pretendard Variable';src:url('fonts/PretendardVariable.woff2') format('woff2-variations');font-weight:45 920;font-display:swap}
 :root{
   --ink:#171A28; --panel:#20243A; --panel-2:#2A2F49; --line:#3A3F5E;
   --text:#F1ECE2; --muted:#9A9BAE;
