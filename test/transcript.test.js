@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { normalizeRecord, MAIN_LINE_FILTER, readMeta, classifyTool, toolTarget } from '../server/lib/transcript.js';
+import { normalizeRecord, MAIN_LINE_FILTER, readMeta, classifyTool, toolTarget, cleanTaskText } from '../server/lib/transcript.js';
 
 const FIX = path.join(import.meta.dirname, 'fixtures');
 async function records(name) {
@@ -86,4 +86,12 @@ test('toolTarget', () => {
   assert.equal(toolTarget('Agent', { description: '탐색-auth', prompt: '...' }), '탐색-auth');
   assert.equal(toolTarget('Mystery', { foo: 1, bar: 'hello' }), 'hello');
   assert.equal(toolTarget('Mystery', {}), '');
+});
+
+test('cleanTaskText drops wrapper tags like <teammate-message …> so the task reads as plain text', () => {
+  assert.equal(cleanTaskText('<teammate-message teammate_id="team-lead" summary="List files"> In /x, list every file.'), 'In /x, list every file.');
+  assert.equal(cleanTaskText('<task-notification>\n<id>1</id>\nhello'), 'hello');
+  assert.equal(cleanTaskText('  plain prompt  '), 'plain prompt');
+  assert.equal(cleanTaskText('a < b and b > c'), 'a < b and b > c');   // 비교 기호는 태그가 아니다
+  assert.equal(cleanTaskText(''), '');
 });

@@ -39,7 +39,7 @@ button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 .statusbar{display:flex;align-items:center;gap:16px;height:46px;padding:0 14px;background:#0F111C;border:6px solid #0F111C;border-bottom:0;color:var(--text)}
 .sb-task{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1}
 .sb-name{font:11px/1 var(--pixel);color:var(--amber);flex:none}
-.sb-title{font-size:13px;font-weight:600;white-space:nowrap}
+.sb-title{font-size:13px;font-weight:600;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
 .sb-desc{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-chips{display:flex;gap:4px;flex:none}
 .chip{display:flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:13px;font:11px/1 var(--pixel);color:var(--muted);border:1px solid transparent}

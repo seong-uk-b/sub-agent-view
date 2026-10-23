@@ -115,3 +115,12 @@ export function toolTarget(name, input) {
   }
   return str(v).replace(/\s+/g, ' ').slice(0, TARGET_MAX);
 }
+
+/** 맡은 일 표시용: `<teammate-message …>`, `<task-notification>` 같은 래퍼 태그(와 그 안의 짧은 태그 줄)를 걷어낸 본문. */
+export function cleanTaskText(text) {
+  if (!text) return '';
+  let t = String(text)
+    .replace(/<([A-Za-z][\w-]*)(?:\s[^<>]*)?>[^<>\n]{0,80}<\/\1>/g, ' ')   // <id>1</id> 같은 짧은 메타 요소는 통째로
+    .replace(/<\/?[A-Za-z][\w-]*(?:\s[^<>]*)?>/g, ' ');                   // 남은 래퍼 태그만 제거 (a < b 같은 비교식은 남김)
+  return t.replace(/\s+/g, ' ').trim();
+}

@@ -84,3 +84,9 @@ test('liveAgentCount leaves out agents that have already left the office', () =>
   assert.equal(liveAgentCount({ agents }), 2);
   assert.equal(liveAgentCount({ agents: [] }), 0);
 });
+
+test('status bar title truncates with an ellipsis instead of overlapping the chips', () => {
+  const css = fs.readFileSync(new URL('../web/styles.css', import.meta.url), 'utf8');
+  const rule = /\.sb-title\{([^}]*)\}/.exec(css)?.[1] || '';
+  assert.match(rule, /overflow\s*:\s*hidden/); assert.match(rule, /text-overflow\s*:\s*ellipsis/); assert.match(rule, /min-width\s*:\s*0/);
+});

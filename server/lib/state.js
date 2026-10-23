@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import path from 'node:path';
-import { classifyTool, toolTarget } from './transcript.js';
+import { classifyTool, toolTarget, cleanTaskText } from './transcript.js';
 
 const SPAWN_TOOLS = new Set(['Agent', 'Task']);
 import { displayName, sessionFromTranscriptPath } from './paths.js';
@@ -181,7 +181,7 @@ export class Store extends EventEmitter {
           if (e.role === 'assistant') { a.lastTextAt = e.ts; a.lastText = e.text; this.#touch(a, e.ts); }
           if (e.role === 'user' && e.human) {
             if (a.id === MAIN) s.lastPrompt = firstLine(e.text) ?? s.lastPrompt;
-            else if (!a.task) a.task = firstChars(e.text, 400);
+            else if (!a.task) a.task = firstChars(cleanTaskText(e.text), 400);
           }
           this.#pushLine(a, { kind: e.role === 'user' ? 'user' : 'think', text: firstChars(e.text, 4000), ts: e.ts });
           break;
@@ -214,7 +214,7 @@ export class Store extends EventEmitter {
     if (meta.spawnDepth) a.depth = meta.spawnDepth;
     const spawn = s.pendingSpawns.get(meta.toolUseId);
     if (spawn) {
-      if (spawn.prompt) a.task = firstChars(spawn.prompt, 400);
+      if (spawn.prompt) a.task = firstChars(cleanTaskText(spawn.prompt), 400);
       if (!a.name && spawn.description) a.name = spawn.description;
     }
     if (meta.finished && LIVE.has(a.state)) this.#finish(a, a.summary, a.lastEventAt);
