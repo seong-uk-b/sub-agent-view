@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sub-agent-view · 작업실</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --ink:#171A28; --panel:#20243A; --panel-2:#2A2F49; --line:#3A3F5E;
+  --text:#F1ECE2; --muted:#9A9BAE;
+  --wall:#1E2742; --wall-edge:#3A4668; --baseboard:#2B3553;
+  --wood:#8E5F3F; --wood-l:#9D6B48; --wood-seam:#6E4630;
+  --desk:#C9A06B; --desk-d:#8E6A3C; --desk-top:#D9B27E;
+  --rug:#5B4A7A; --rug-edge:#4A3C66; --rug-boss:#7A3B4A; --rug-boss-edge:#D4A24C;
+  --lounge:#3F5F8F; --lounge-d:#365178;
+  --amber:#FFC65C; --blue:#7FB8FF; --teal:#5EE0C8; --red:#FF6F61; --green:#7FD1A0; --violet:#B59CFF;
+  --pixel:'Galmuri11','Galmuri9',ui-monospace,monospace;
+  --body:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  --mono:ui-monospace,'JetBrains Mono','SF Mono',Menlo,Consolas,'Pretendard Variable','Apple SD Gothic Neo','Noto Sans KR',monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--text);font-family:var(--body);font-size:14px;line-height:1.5;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---------- top bar ---------- */
+.top{height:52px;display:flex;align-items:stretch;gap:24px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+.top h1{font:16px/52px var(--pixel);margin:0;flex:none}
+.top-right{margin-left:auto;align-self:center;font:11px/1 var(--pixel);color:var(--muted)}
+/* 세션 탭 */
+.stabs{display:flex;gap:4px;align-items:stretch;overflow-x:auto;scrollbar-width:none}
+.stab{position:relative;display:flex;align-items:center;gap:8px;padding:0 14px;font:12px/1 var(--pixel);color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.stab:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.stab[aria-selected=true]{color:var(--text);border-bottom-color:var(--amber)}
+.stab .sdot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(0,0,0,.25)}
+.stab .sdot.wait{animation:sdot 1s steps(2) infinite}
+@keyframes sdot{to{opacity:.3}}
+.stab .scount{font:10px/16px var(--pixel);color:var(--muted);background:var(--panel-2);padding:0 6px;border-radius:8px}
+.stab[aria-selected=true] .scount{color:var(--text)}
+.stab .sdesc{font:11px var(--body);color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis}
+/* 상태바: 사무실 위 한 줄 */
+.frame{display:flex;flex-direction:column;width:972px}
+.statusbar{display:flex;align-items:center;gap:16px;height:46px;padding:0 14px;background:#0F111C;border:6px solid #0F111C;border-bottom:0;color:var(--text)}
+.sb-task{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1}
+.sb-name{font:11px/1 var(--pixel);color:var(--amber);flex:none}
+.sb-title{font-size:13px;font-weight:600;white-space:nowrap}
+.sb-desc{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-chips{display:flex;gap:4px;flex:none}
+.chip{display:flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:13px;font:11px/1 var(--pixel);color:var(--muted);border:1px solid transparent}
+.chip .dot{width:7px;height:7px;border-radius:50%}
+.chip b{font-weight:400;color:var(--text)}
+.chip.zero{opacity:.4}
+.chip:hover{background:var(--panel-2)}
+.chip[aria-pressed=true]{background:var(--panel-2);border-color:var(--line);color:var(--text)}
+.sb-clock{font:12px/1 var(--pixel);color:var(--muted);flex:none;min-width:64px;text-align:right}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+/* ---------- stage ---------- */
+.stage{position:relative;height:calc(100% - 56px);display:grid;place-items:center;padding:24px;overflow:auto}
+.office{position:relative;width:960px;height:540px;border:6px solid #0F111C;box-shadow:0 0 0 1px var(--line), 0 40px 80px -40px #000;overflow:hidden;image-rendering:pixelated;
+  background:
+    repeating-linear-gradient(180deg, var(--wood-l) 0 2px, var(--wood) 2px 14px, var(--wood-seam) 14px 16px),
+    var(--wood)}
+/* 판자 이음새 */
+.office::before{content:"";position:absolute;inset:0;background:
+  repeating-linear-gradient(90deg, transparent 0 94px, rgba(0,0,0,.18) 94px 96px) 0 0 / 192px 32px,
+  repeating-linear-gradient(90deg, transparent 0 46px, rgba(0,0,0,.18) 46px 48px) 48px 16px / 192px 32px;
+  background-blend-mode:normal;pointer-events:none;opacity:.6;
+  -webkit-mask:repeating-linear-gradient(180deg,#000 0 16px,transparent 16px 32px);mask:repeating-linear-gradient(180deg,#000 0 16px,transparent 16px 32px)}
+
+/* 벽 */
+.wall{position:absolute;inset:0 0 auto 0;height:76px;background:var(--wall);border-bottom:4px solid var(--wall-edge);box-shadow:0 4px 0 var(--baseboard)}
+.wall-side{position:absolute;top:76px;bottom:0;width:14px;background:var(--wall);border-left:3px solid var(--wall-edge);border-right:3px solid var(--wall-edge)}
+.wall-side.left{left:0;border-left:0}.wall-side.right{right:0;border-right:0}
+.divider{position:absolute;left:744px;top:80px;width:14px;height:200px;background:var(--wall);border:3px solid var(--wall-edge);border-top:0}
+.divider.low{top:360px;height:180px;border-bottom:0}
+
+/* 책장 */
+.shelf{position:absolute;top:10px;width:112px;height:58px;background:#6B4328;border:3px solid #3E2415;box-shadow:inset 0 0 0 2px #8A5A38}
+.shelf i{position:absolute;left:5px;right:5px;height:20px;background:
+  linear-gradient(90deg,#d35b5b 0 8px,#e8b04a 8px 16px,#5b9bd3 16px 22px,#7fbf6a 22px 32px,#b57fd3 32px 38px,#e8e0c8 38px 46px,#d35b5b 46px 52px,#5b9bd3 52px 62px,#e8b04a 62px 70px,#7fbf6a 70px 80px,#e8e0c8 80px 86px,#d35b5b 86px 96px);
+  border-bottom:3px solid #3E2415}
+.shelf i:nth-child(1){top:4px}.shelf i:nth-child(2){top:28px;filter:hue-rotate(60deg)}
+/* 창문 */
+.window{position:absolute;top:8px;width:160px;height:60px;background:#0E1630;border:4px solid #8F8AA8;box-shadow:inset 0 0 0 2px #0a0d1c, 0 0 24px rgba(127,184,255,.15)}
+.window::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:4px;background:#8F8AA8;transform:translateX(-50%)}
+.window .moon{position:absolute;right:18px;top:8px;width:12px;height:12px;border-radius:50%;background:#F4E7B5;box-shadow:0 0 8px #F4E7B5}
+.window .bld{position:absolute;bottom:0;background:#1C2650}
+.window .bld i{position:absolute;width:2px;height:2px;background:#FFD98A}
+/* 화이트보드 */
+.board{position:absolute;top:10px;width:200px;height:56px;background:#F3EEDF;border:4px solid #7A5A3A;padding:5px 9px;font:9px/12px var(--pixel);color:#3A2F26}
+.board b{display:block;color:#9B2F2F;margin-bottom:2px}
+.board span{color:#3A2F26}
+.board span.sub{color:#2F6B9B}
+/* 시계 */
+.clockw{position:absolute;top:14px;width:34px;height:34px;border-radius:50%;background:#F4EFE4;border:3px solid #2B2233}
+.clockw::before,.clockw::after{content:"";position:absolute;left:50%;top:50%;background:#2B2233;transform-origin:0 50%}
+.clockw::before{width:11px;height:2px;transform:rotate(-60deg)}.clockw::after{width:8px;height:2px;transform:rotate(30deg)}
+.clockw i{position:absolute;left:50%;top:50%;width:9px;height:1px;background:#D35B5B;transform-origin:0 50%;transform:rotate(140deg)}
+
+/* 러그 */
+.rug{position:absolute;background:var(--rug);box-shadow:inset 0 0 0 4px var(--rug-edge), inset 0 0 0 8px var(--rug), inset 0 0 0 10px var(--rug-edge)}
+.rug.boss{background:var(--rug-boss);box-shadow:inset 0 0 0 3px var(--rug-boss-edge), inset 0 0 0 6px var(--rug-boss), inset 0 0 0 8px var(--rug-boss-edge)}
+.rug.boss::after{content:"";position:absolute;inset:14px;border:2px dashed var(--rug-boss-edge);opacity:.6}
+
+/* 휴게실 */
+.lounge{position:absolute;left:758px;top:80px;width:188px;height:460px;background:var(--lounge);box-shadow:inset 0 0 0 1px var(--lounge-d)}
+.lounge::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 30px,rgba(0,0,0,.06) 30px 32px),repeating-linear-gradient(180deg,transparent 0 30px,rgba(0,0,0,.06) 30px 32px)}
+.lounge .label{position:absolute;left:12px;top:10px;font:10px/1 var(--pixel);color:#CFE0F8;opacity:.7}
+.sofa{position:absolute;left:28px;top:220px;width:132px;height:46px;background:#B3485C;border-radius:4px;box-shadow:inset 0 -14px 0 #8E3748, inset 0 0 0 3px #2B2233}
+.sofa::before,.sofa::after{content:"";position:absolute;top:-12px;width:18px;height:58px;background:#B3485C;border-radius:4px;box-shadow:inset 0 0 0 3px #2B2233}
+.sofa::before{left:-10px}.sofa::after{right:-10px}
+.sofa .back{position:absolute;left:0;right:0;top:-22px;height:22px;background:#C25B6E;border-radius:6px 6px 0 0;box-shadow:inset 0 0 0 3px #2B2233}
+.ctable{position:absolute;left:52px;top:296px;width:84px;height:34px;background:var(--desk);border:3px solid #2B2233;border-radius:4px;box-shadow:inset 0 -8px 0 var(--desk-d)}
+.ctable::after{content:"";position:absolute;left:36px;top:8px;width:10px;height:10px;background:#F4EFE4;border:2px solid #2B2233}
+.coffee{position:absolute;left:146px;top:350px;width:28px;height:62px;background:#55607A;border:3px solid #2B2233;border-radius:3px}
+.coffee::before{content:"";position:absolute;left:5px;top:6px;width:12px;height:7px;background:#FF8E5B;box-shadow:0 0 6px #FF8E5B}
+.coffee::after{content:"";position:absolute;left:7px;bottom:5px;width:8px;height:10px;background:#F4EFE4;border:2px solid #2B2233}
+.cooler{position:absolute;width:24px;height:70px}
+.cooler::before{content:"";position:absolute;left:3px;top:0;width:18px;height:28px;background:#9FD3F5;border:3px solid #2B2233;border-radius:6px 6px 2px 2px;box-shadow:inset -4px 0 0 #6FB3DF}
+.cooler::after{content:"";position:absolute;left:0;top:26px;width:24px;height:44px;background:#E8E4DA;border:3px solid #2B2233;border-radius:2px;box-shadow:inset 0 -10px 0 #BDB8AC}
+.plant{position:absolute;width:34px;height:52px}
+.plant::before{content:"";position:absolute;left:6px;bottom:0;width:22px;height:18px;background:#A05A3A;border:3px solid #2B2233;border-top:5px solid #C27A50}
+.plant::after{content:"";position:absolute;left:0;top:0;width:34px;height:36px;background:#3F8A4F;border:3px solid #2B2233;
+  clip-path:polygon(50% 0,70% 20%,100% 25%,85% 50%,95% 80%,65% 70%,50% 100%,35% 70%,5% 80%,15% 50%,0 25%,30% 20%)}
+.printer{position:absolute;width:56px;height:38px;background:#E8E4DA;border:3px solid #2B2233;border-radius:3px;box-shadow:inset 0 -10px 0 #BDB8AC}
+.printer::before{content:"";position:absolute;left:10px;top:-10px;width:30px;height:12px;background:#fff;border:3px solid #2B2233;border-bottom:0}
+.printer::after{content:"";position:absolute;right:6px;top:6px;width:6px;height:6px;background:#7FD1A0;border-radius:50%;box-shadow:0 0 5px #7FD1A0}
+.bin{position:absolute;width:20px;height:24px;background:#8A8FA8;border:3px solid #2B2233;border-radius:0 0 4px 4px}
+
+/* 책상 */
+.desk{position:absolute;width:120px;height:46px;background:var(--desk);border:3px solid #2B2233;border-radius:3px;box-shadow:inset 0 4px 0 var(--desk-top), inset 0 -10px 0 var(--desk-d);z-index:4}
+.desk.boss{width:156px;height:52px}
+.desk .legs{position:absolute;left:8px;right:8px;bottom:-10px;height:10px;border-left:6px solid #2B2233;border-right:6px solid #2B2233}
+.desk .monitor{position:absolute;left:8px;top:-26px;width:40px;height:30px;background:#2A2D3E;border:3px solid #2B2233;border-radius:3px}
+.desk.boss .monitor{left:14px}
+.desk .monitor::after{content:"";position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);width:14px;height:6px;background:#2B2233}
+.desk .screen{position:absolute;inset:2px;background:#161A28;overflow:hidden}
+.desk .screen::before{content:"";position:absolute;inset:2px;background:repeating-linear-gradient(180deg,transparent 0 3px,var(--sc,#3a3d55) 3px 5px),repeating-linear-gradient(90deg,transparent 0 6px,rgba(0,0,0,.4) 6px 9px);opacity:0}
+.desk[data-screen=on] .screen{background:#10151F;box-shadow:0 0 16px var(--sc)}
+.desk[data-screen=on] .screen::before{opacity:.9;animation:scroll 1.2s linear infinite}
+.desk[data-screen=dim] .screen{box-shadow:0 0 8px rgba(255,111,97,.4)}
+.desk[data-screen=dim] .screen::before{opacity:.25}
+@keyframes scroll{to{background-position:0 -10px,0 0}}
+.desk .kb{position:absolute;left:62px;top:12px;width:40px;height:9px;background:#3A3E55;border:2px solid #2B2233;border-radius:2px;background-image:repeating-linear-gradient(90deg,transparent 0 3px,#2B2233 3px 4px)}
+.desk.boss .kb{left:78px}
+.desk.boss .mug{right:30px}
+.desk .mug{position:absolute;right:10px;top:12px;width:10px;height:11px;background:#F4EFE4;border:2px solid #2B2233;border-radius:1px}
+.desk .mug::after{content:"";position:absolute;right:-6px;top:2px;width:4px;height:5px;border:2px solid #2B2233;border-left:0;border-radius:0 3px 3px 0}
+.desk .papers{position:absolute;left:52px;top:4px;width:0;height:0}
+.desk .lamp{position:absolute;right:6px;top:-24px;width:5px;height:28px;background:#2B2233}
+.desk .lamp::before{content:"";position:absolute;left:-9px;top:-6px;width:24px;height:10px;background:#FFD27A;border:2px solid #2B2233;border-radius:3px 3px 0 0;box-shadow:0 14px 22px rgba(255,210,122,.25)}
+.chair{position:absolute;width:40px;height:16px;background:#3E8A6E;border:3px solid #2B2233;border-radius:8px 8px 3px 3px;z-index:2}
+.desk.empty{opacity:.75}
+.desk.empty .nameplate{color:var(--muted)}
+.nameplate{position:absolute;left:50%;top:54px;transform:translateX(-50%);font:10px/1 var(--pixel);color:#F1ECE2;background:#2B2233;padding:3px 7px;white-space:nowrap;border-radius:2px;z-index:5}
+
+/* 캐릭터 */
+.agent{position:absolute;width:48px;height:96px;cursor:pointer;z-index:3;transition:left .9s ease,top .9s ease}
+.spr{width:48px;height:96px;background-repeat:no-repeat;background-size:336px 288px;image-rendering:pixelated}
+.agent .spr{position:absolute;left:0;top:0;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+.agent .body{position:absolute;inset:0}
+.agent[data-state=edit] .body,.agent[data-state=run] .body{animation:typebob .5s steps(2) infinite}
+.agent[data-state=idle] .body,.agent[data-state=done] .body,.agent[data-state=delegating] .body,.agent[data-state=read] .body{animation:breathe 1.8s steps(2) infinite}
+@keyframes typebob{to{transform:translateY(-1px)}}
+@keyframes breathe{to{transform:translateY(-1px)}}
+.agent.selected::after{content:"";position:absolute;left:10px;right:10px;bottom:-2px;height:3px;background:var(--amber);box-shadow:0 0 0 2px #2B2233}
+.bubble{position:absolute;left:50%;top:-20px;transform:translateX(-50%);min-width:24px;height:22px;padding:0 8px;background:#FFFDF7;color:#2B2233;font:10px/22px var(--pixel);white-space:nowrap;border:2px solid #2B2233;border-radius:8px;box-shadow:2px 2px 0 #2B2233;z-index:6}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);border:5px solid transparent;border-top:6px solid #2B2233;border-bottom:0}
+.bubble::before{content:"";position:absolute;left:50%;bottom:-4px;transform:translateX(-50%);border:4px solid transparent;border-top:4px solid #FFFDF7;border-bottom:0;z-index:1}
+.bubble.wait{background:var(--red);color:#fff;animation:pulse 1s steps(2) infinite;font-weight:700}
+.bubble.wait::before{border-top-color:var(--red)}
+.bubble.done{background:var(--green)}.bubble.done::before{border-top-color:var(--green)}
+@keyframes pulse{to{transform:translate(-50%,-3px)}}
+.zz{position:absolute;left:36px;top:-6px;font:10px var(--pixel);color:#CFE0F8;animation:zz 2s steps(3) infinite}
+@keyframes zz{to{transform:translate(6px,-10px);opacity:0}}
+
+/* 연결선 */
+.links{position:absolute;inset:0;pointer-events:none;z-index:1}
+.links path{fill:none;stroke-width:2;stroke-dasharray:3 7;opacity:.45;stroke-linecap:round}
+.links path.active{animation:dash 1.2s linear infinite}
+.links path.done{stroke-dasharray:none;opacity:.15}
+@keyframes dash{to{stroke-dashoffset:-20}}
+
+
+/* ---------- popover ---------- */
+.pop{position:fixed;z-index:20;width:320px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 20px 50px -20px #000, 0 0 0 1px #0008;display:none}
+.pop.show{display:block;animation:popin .14s ease-out}
+.pop.show.still{animation:none}
+@keyframes popin{from{opacity:0;transform:translateY(4px) scale(.98)}}
+.pop::before{content:"";position:absolute;left:var(--ax,50%);top:-7px;width:12px;height:12px;background:var(--panel);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
+.pop.flip::before{top:auto;bottom:-7px;transform:translateX(-50%) rotate(225deg)}
+.pop.side::before{top:var(--ay,40px);left:-7px;transform:translateY(-50%) rotate(-45deg)}
+.pop.side.leftside::before{left:auto;right:-7px;transform:translateY(-50%) rotate(135deg)}
+.pop header{display:flex;align-items:center;gap:10px;padding:14px 14px 10px}
+.pop header .avatar{width:48px;height:56px;position:relative;flex:none;background:var(--panel-2);border-radius:8px;overflow:hidden}
+.pop header .avatar .spr{position:absolute;left:0;top:-2px}
+.pop header h2{margin:0;font:14px/1.2 var(--pixel)}
+.pop header .meta{display:flex;gap:6px;margin-top:4px;font-size:11px;color:var(--muted)}
+.state{display:inline-flex;align-items:center;gap:6px;padding:2px 7px;border-radius:4px;font:11px/16px var(--pixel);background:var(--panel-2)}
+.pop .section{padding:10px 14px;border-top:1px solid var(--line)}
+.pop .section .k{font-size:11px;color:var(--muted);margin-bottom:3px}
+.pop .section .v{font-size:13px}
+.pop .now{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;background:#161826;border-radius:6px;margin-top:4px;border-left:3px solid var(--sc,var(--amber))}
+.pop .now .tool{font:12px var(--pixel);color:var(--sc,var(--amber))}
+.pop .now .target{font:12px var(--mono);color:#c9d1ff;word-break:break-all}
+.pop .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pop .stats div{background:#161826;border-radius:6px;padding:8px 10px}
+.pop .stats .n{font:14px/1 var(--pixel)}
+.pop .stats .k{margin:4px 0 0;font-size:11px}
+.pop .recent{list-style:none;margin:0;padding:0;font-size:12px;color:#cfd0dd}
+.pop .recent li{display:flex;gap:8px;padding:3px 0}
+.pop .recent li span:first-child{color:var(--muted);font:11px var(--mono);flex:none;width:38px}
+.pop footer{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line)}
+.btn{flex:1;padding:9px 10px;border-radius:7px;font:12px/1 var(--pixel);border:1px solid var(--line);background:var(--panel-2);text-align:center}
+.btn.primary{background:var(--amber);color:#1A1C2A;border-color:var(--amber)}
+.btn.danger{background:transparent;color:var(--red);border-color:#6a3a3a}
+.btn.ok{background:var(--green);color:#1A1C2A;border-color:var(--green)}
+.pop .warn{margin:8px 14px 0;padding:10px 12px;border-radius:6px;background:#3a2426;border:1px solid #6a3a3a;font-size:12px}
+.pop .warn b{display:block;font:11px var(--pixel);color:var(--red);margin-bottom:4px}
+
+/* ---------- drawer ---------- */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:560px;max-width:100vw;background:#121420;border-left:1px solid var(--line);transform:translateX(100%);transition:transform .22s ease;z-index:30;display:flex;flex-direction:column;box-shadow:-30px 0 60px -40px #000}
+.drawer.open{transform:none}
+.drawer .head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.drawer .head .avatar{width:38px;height:42px;position:relative;background:var(--panel-2);border-radius:6px;overflow:hidden;flex:none}
+.drawer .head .avatar .spr{position:absolute;left:-5px;top:-2px;transform:scale(.72);transform-origin:top center}
+.drawer .head h2{margin:0;font:14px/1.2 var(--pixel)}
+.drawer .head .sub{font-size:12px;color:var(--muted);margin-top:3px}
+.drawer .head .x{margin-left:auto;width:32px;height:32px;border-radius:6px;font:14px var(--pixel);color:var(--muted)}
+.drawer .head .x:hover{background:var(--panel-2);color:var(--text)}
+.strip{display:flex;gap:18px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);background:#171926}
+.strip b{color:var(--text);font:12px var(--pixel);margin-left:6px}
+.tabs{display:flex;gap:2px;padding:8px 12px 0;border-bottom:1px solid var(--line);background:#171926}
+.tabs button{padding:8px 12px;font:12px/1 var(--pixel);color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected=true]{color:var(--text);border-color:var(--amber)}
+.term{flex:1;overflow:auto;padding:14px 16px 24px;font:12.5px/1.65 var(--mono);color:#d7d9e6;background:#0f1119;scrollbar-color:#2e3147 transparent}
+.term.hidden{display:none}
+.term .l{white-space:pre-wrap;word-break:break-word}
+.term .sys{color:#7f82a0}
+.term .user{color:#c9d1ff;background:#1a1d2f;padding:4px 8px;border-left:3px solid var(--violet);margin:6px 0}
+.term .tool .n{color:var(--sc,var(--amber));font-weight:600}
+.term .out{color:#9ea1bb;padding-left:14px}
+.term .out::before{content:"└ ";color:#4c4f6b}
+.term .think{color:#8a8ea8;font-style:italic}
+.term .err{color:var(--red)}.term .ok{color:var(--green)}
+.term .cursor{display:inline-block;width:8px;height:14px;background:#d7d9e6;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{to{opacity:0}}
+.drawer .foot{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:var(--panel)}
+.drawer .foot input{flex:1;background:#0f1119;border:1px solid var(--line);border-radius:6px;color:var(--text);padding:9px 12px;font:13px var(--mono)}
+.drawer .foot input::placeholder{color:#5f6280}
+.drawer .foot .btn{flex:none;padding:9px 14px}
+.scrim{position:fixed;inset:0;z-index:25;display:none}.scrim.show{display:block}
+.worklist{flex:1;overflow:auto;padding:14px 16px;font-size:13px;display:none}
+.worklist.show{display:block}
+.worklist ul{list-style:none;margin:0;padding:0}
+.worklist li{padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:10px}
+.worklist li span:first-child{flex:none;width:16px;text-align:center;font:12px var(--pixel)}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>sub-agent-view</h1>
+  <nav class="stabs" id="stabs" aria-label="세션"></nav>
+  <div class="top-right"><span id="total-agents"></span></div>
+</header>
+
+<main class="stage">
+ <div class="frame">
+  <div class="statusbar" id="statusbar">
+    <div class="sb-task"><span class="sb-name" id="sb-name"></span><span class="sb-title" id="sb-title"></span><span class="sb-desc" id="sb-desc"></span></div>
+    <div class="sb-chips" id="chips"></div>
+    <div class="sb-clock" id="clock">0:00</div>
+  </div>
+  <div class="office" id="office">
+    <!-- 벽과 장식 -->
+    <div class="wall">
+      <div class="shelf" style="left:34px"><i></i><i></i></div>
+      <div class="window" style="left:176px">
+        <div class="moon"></div>
+        <div class="bld" style="left:6px;width:18px;height:30px"><i style="left:4px;top:6px"></i><i style="left:10px;top:12px"></i><i style="left:4px;top:20px"></i></div>
+        <div class="bld" style="left:28px;width:14px;height:42px"><i style="left:3px;top:8px"></i><i style="left:8px;top:18px"></i><i style="left:3px;top:30px"></i></div>
+        <div class="bld" style="left:46px;width:22px;height:22px"><i style="left:5px;top:6px"></i><i style="left:14px;top:10px"></i></div>
+        <div class="bld" style="left:84px;width:16px;height:36px"><i style="left:4px;top:8px"></i><i style="left:9px;top:20px"></i></div>
+        <div class="bld" style="left:104px;width:26px;height:26px"><i style="left:5px;top:6px"></i><i style="left:16px;top:6px"></i><i style="left:10px;top:16px"></i></div>
+        <div class="bld" style="left:134px;width:12px;height:46px"><i style="left:3px;top:10px"></i><i style="left:3px;top:30px"></i></div>
+      </div>
+      <div class="clockw" style="left:420px"><i></i></div>
+      <div class="board" style="left:540px" id="board"><b>오늘의 목표</b><span id="board-1"></span><br><span id="board-2" class="sub"></span></div>
+      <div class="shelf" style="left:800px"><i></i><i></i></div>
+    </div>
+    <div class="wall-side left"></div>
+    <div class="wall-side right"></div>
+
+    <!-- 휴게실 -->
+    <div class="lounge">
+      <div class="label">휴게실</div>
+      <div class="plant" style="left:16px;top:20px"></div>
+      <div class="plant" style="left:140px;top:20px"></div>
+      <div class="sofa"><div class="back"></div></div>
+      <div class="ctable"></div>
+      <div class="coffee"></div>
+      <div class="plant" style="left:16px;top:380px"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="divider low"></div>
+
+    <!-- 러그 -->
+    <div class="rug boss" style="left:388px;top:100px;width:188px;height:118px"></div>
+    <div class="rug" style="left:44px;top:262px;width:680px;height:150px"></div>
+
+    <!-- 비품 -->
+    <div class="cooler" style="left:40px;top:430px"></div>
+    <div class="printer" style="left:80px;top:452px"></div>
+    <div class="bin" style="left:150px;top:462px"></div>
+    <div class="plant" style="left:690px;top:440px"></div>
+    <div class="plant" style="left:30px;top:100px"></div>
+    <div class="plant" style="left:690px;top:100px"></div>
+
+    <svg class="links" id="links" viewBox="0 0 960 540"></svg>
+  </div>
+ </div>
+</main>
+
+<div class="pop" id="pop" role="dialog" aria-label="에이전트 상태"></div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="에이전트 터미널">
+  <div class="head">
+    <div class="avatar" id="d-avatar"></div>
+    <div><h2 id="d-name">—</h2><div class="sub" id="d-sub">—</div></div>
+    <button class="x" id="d-close" aria-label="닫기">✕</button>
+  </div>
+  <div class="strip">
+    <span>경과<b id="d-elapsed">0:00</b></span><span>도구 호출<b id="d-tools">0</b></span><span>토큰<b id="d-tokens">0</b></span><span>모델<b id="d-model">—</b></span>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="term">터미널</button>
+    <button role="tab" aria-selected="false" data-tab="work">작업 목록</button>
+    <button role="tab" aria-selected="false" data-tab="files">변경 파일</button>
+  </div>
+  <div class="term" id="term"></div>
+  <div class="worklist" id="work"></div>
+  <div class="foot">
+    <input id="d-input" placeholder="이 에이전트에게 메시지 보내기…">
+    <button class="btn">보내기</button>
+    <button class="btn danger" id="d-stop">중지</button>
+  </div>
+</aside>
+
+<script>
+/* ------------------------------------------------------------------ 스프라이트 (Metro City / pixel-agents 시트, 16x32 ×3) */
+const SHEET = n => `assets/characters/char_${n}.png`;
+const FW = 48, FH = 96;                       // 16x32 프레임을 3배
+const ROW = {down:0, up:1, right:2};
+const FRAMES = { idle:[0,0], walk:[1,2], type:[3,4], read:[5,6] };
+const STATE_ANIM = { edit:'type', run:'type', delegating:'type', read:'read', wait:'idle', done:'idle', idle:'idle' };
+function frameStyle(a, anim, f, dir='down'){
+  const col = FRAMES[anim][f%2], row = ROW[dir];
+  return `background-image:url(${SHEET(a.sheet)});background-position:${-col*FW}px ${-row*FH}px`;
+}
+const avatarHTML = (a, cls) => `<div class="${cls}"><div class="spr" style="${frameStyle(a,'idle',0)}"></div></div>`;
+
+/* ------------------------------------------------------------------ 데이터 */
+const STATES = {
+  delegating:{label:'분배 중', raw:'#B59CFF', screen:'on', bubble:'다들 화이팅!'},
+  edit:      {label:'코드 작성 중', raw:'#FFC65C', screen:'on', bubble:'타닥타닥'},
+  read:      {label:'읽는 중', raw:'#7FB8FF', screen:'on', bubble:'읽는 중…'},
+  run:       {label:'명령 실행 중', raw:'#5EE0C8', screen:'on', bubble:'>_ 실행 중'},
+  wait:      {label:'허가 대기', raw:'#FF6F61', screen:'dim', bubble:'!'},
+  done:      {label:'완료', raw:'#7FD1A0', screen:'off', bubble:'다 했다!'},
+  idle:      {label:'대기 중', raw:'#9A9BAE', screen:'off', bubble:'검토 기다려요'},
+};
+const LOOK = { main:{sheet:5}, a1:{sheet:1}, a2:{sheet:0}, a3:{sheet:3}, a4:{sheet:4}, a5:{sheet:2} };
+const S1 = [
+  {id:'main', name:'메인 세션', type:'오케스트레이터', model:'fable-5.1', state:'delegating',
+   task:'결제 모듈 리팩터링. 탐색 → 구현 → 테스트 → 리뷰 → 문서 순으로 서브에이전트에 분배',
+   tool:'Agent', target:'5개 서브에이전트 모니터링', desk:{x:404,y:150}, start:-1870, tools:14, tokens:48200,
+   recent:[['-2분','테스트 에이전트 실행 결과 수신'],['-6분','리뷰어 에이전트 생성'],['-9분','구현-api에 작업 전달']],
+   log:[['user','결제 모듈 리팩터링 해줘. refund API 추가하고 테스트까지.'],['think','작업을 다섯 갈래로 나눈다. 탐색은 읽기 전용 에이전트에게.'],['tool','Agent','탐색-auth: src/auth 아래 토큰 갱신 로직 위치 찾기'],['tool','Agent','구현-api: /payments/refund 엔드포인트 구현'],['tool','Agent','테스트: 결제 테스트 스위트 실행'],['out','서브에이전트 3개 시작됨'],['sys','탐색-auth 보고 수신 · 파일 4개 위치 확인'],['tool','Agent','리뷰어: 변경분 검토 후 수정 제안 적용'],['tool','Agent','문서: API 변경사항 CHANGELOG 반영'],['sys','문서 에이전트 완료 · CHANGELOG.md +42'],['think','리뷰어가 Bash 권한을 기다리는 중. 사용자 확인 필요.']]},
+  {id:'a1', name:'탐색-auth', type:'Explore', model:'haiku-5.5', state:'read',
+   task:'src/auth 아래 토큰 갱신 로직이 어디 있는지 찾고 호출 경로 정리', tool:'Grep', target:'refreshToken  src/auth/**',
+   desk:{x:66,y:312}, start:-540, tools:9, tokens:6100,
+   recent:[['-10초','Read src/auth/session.ts'],['-25초','Grep refreshToken'],['-40초','Glob src/auth/**/*.ts']],
+   log:[['user','src/auth 아래 토큰 갱신 로직 위치를 찾아 호출 경로를 정리해줘'],['tool','Glob','src/auth/**/*.ts'],['out','12개 파일'],['tool','Grep','refreshToken'],['out','src/auth/session.ts:41, src/auth/client.ts:88, src/api/middleware.ts:17'],['tool','Read','src/auth/session.ts (30-90)'],['out','60줄 읽음'],['think','session.ts의 rotate()가 실제 갱신. client.ts는 래퍼.'],['tool','Read','src/auth/client.ts (70-120)'],['out','51줄 읽음'],['tool','Grep','rotate\\('],['out','4개 호출 지점']]},
+  {id:'a2', name:'구현-api', type:'general-purpose', model:'fable-5.1', state:'edit',
+   task:'/payments/refund 엔드포인트와 검증 스키마 구현', tool:'Edit', target:'src/api/refund.ts',
+   desk:{x:236,y:312}, start:-720, tools:21, tokens:19400,
+   recent:[['-5초','Edit src/api/refund.ts'],['-30초','Read src/api/payments.ts'],['-1분','Write src/api/refund.schema.ts']],
+   log:[['user','/payments/refund 엔드포인트 구현. payments.ts 패턴을 따를 것.'],['tool','Read','src/api/payments.ts'],['out','214줄 읽음'],['tool','Write','src/api/refund.schema.ts'],['out','새 파일 · 38줄'],['tool','Edit','src/api/refund.ts'],['out','+27 -0'],['think','부분 환불일 때 amount 검증이 빠졌다. 스키마에 min(1) 추가.'],['tool','Edit','src/api/refund.schema.ts'],['out','+3 -1'],['tool','Edit','src/api/router.ts'],['out','+2 -0  (POST /payments/refund 등록)'],['tool','Bash','npx tsc --noEmit'],['ok','타입 오류 없음'],['tool','Edit','src/api/refund.ts'],['out','+9 -2  (idempotency key 처리)']]},
+  {id:'a3', name:'테스트', type:'general-purpose', model:'sonnet-5.5', state:'run',
+   task:'결제 테스트 스위트 실행하고 실패 원인 분석', tool:'Bash', target:'npm test -- payments',
+   desk:{x:406,y:312}, start:-310, tools:5, tokens:4300,
+   recent:[['-2초','Bash npm test -- payments'],['-20초','Read tests/payments.spec.ts'],['-45초','Glob tests/**']],
+   log:[['user','결제 테스트 스위트를 돌리고 실패하면 원인을 분석해줘'],['tool','Glob','tests/**/*payments*'],['out','3개 파일'],['tool','Read','tests/payments.spec.ts'],['out','142줄 읽음'],['tool','Bash','npm test -- payments'],['out','> vitest run payments'],['out','✓ tests/payments.spec.ts (18)'],['out','✓ tests/payments.refund.spec.ts (6)'],['out','↻ tests/payments.webhook.spec.ts  실행 중…']]},
+  {id:'a4', name:'리뷰어', type:'code-review', model:'fable-5.1', state:'wait',
+   task:'구현-api 변경분 리뷰, 안전한 수정 제안은 바로 적용', tool:'Bash', target:'rm -rf dist/ && npm run build',
+   waitReason:'Bash 실행 권한 요청', waitDetail:'dist/ 디렉터리를 지우고 다시 빌드하려고 합니다. 삭제가 포함된 명령이라 확인이 필요합니다.',
+   desk:{x:576,y:312}, start:-260, tools:7, tokens:9800,
+   recent:[['-1분','Bash 권한 대기 시작'],['-2분','Read src/api/refund.ts'],['-3분','Bash git diff --stat']],
+   log:[['user','구현-api의 변경분을 리뷰해줘. 안전한 수정은 직접 적용.'],['tool','Bash','git diff --stat'],['out','4 files changed, 79 insertions(+), 3 deletions(-)'],['tool','Read','src/api/refund.ts'],['out','96줄 읽음'],['think','refund.ts:52 에서 amount 가 undefined 일 때 분기가 없다. 테스트로 확인 필요.'],['tool','Read','src/api/refund.schema.ts'],['out','40줄 읽음'],['tool','Bash','rm -rf dist/ && npm run build'],['err','⚠ 권한 필요 · 사용자 승인 대기 중']]},
+  {id:'a5', name:'문서', type:'general-purpose', model:'haiku-5.5', state:'done',
+   task:'API 변경사항을 CHANGELOG에 반영', tool:'', target:'',
+   desk:{x:0,y:0}, spot:{x:800,y:228}, start:-900, end:-120, tools:6, tokens:3100,
+   summary:'CHANGELOG.md 1개 파일 수정 · 42줄 추가 · 메인 세션에 보고 완료',
+   recent:[['-2분','메인 세션에 결과 보고'],['-3분','Edit CHANGELOG.md'],['-5분','Read docs/api.md']],
+   log:[['user','이번 API 변경사항을 CHANGELOG에 반영해줘'],['tool','Read','CHANGELOG.md'],['out','310줄 읽음'],['tool','Read','docs/api.md'],['out','88줄 읽음'],['tool','Bash','git log --oneline -8'],['out','8 commits'],['tool','Edit','CHANGELOG.md'],['out','+42 -0'],['ok','완료 · CHANGELOG.md 1개 파일 수정, 42줄 추가']]},
+];
+S1.forEach(a=>Object.assign(a, LOOK[a.id]));
+S1[2].cycle = true;          // 구현-api: 작성 ↔ 타입체크 반복
+S1[1].finishChance = .06;    // 탐색: 곧 끝남
+
+// 두 번째 세션: 블로그 프런트엔드 (서브에이전트 2명)
+const S2 = [
+  {id:'main', name:'메인 세션', type:'오케스트레이터', model:'fable-5.1', state:'delegating',
+   task:'다크 모드 테마 적용. 디자인 토큰 교체 → 컴포넌트 수정 → 스냅샷 갱신',
+   tool:'Agent', target:'2개 서브에이전트 모니터링', start:-640, tools:6, tokens:12800,
+   sheet:2,
+   recent:[['-1분','토큰-교체 진행 상황 수신'],['-4분','컴포넌트 에이전트 생성'],['-9분','작업 시작']],
+   log:[['user','다크 모드 테마 적용해줘. 토큰부터 바꾸고 컴포넌트 고쳐.'],['tool','Agent','토큰-교체: tokens.css 다크 팔레트 추가'],['tool','Agent','컴포넌트: Button, Card, Nav 색상 토큰으로 교체'],['out','서브에이전트 2개 시작됨']]},
+  {id:'b1', name:'토큰-교체', type:'general-purpose', model:'sonnet-5.5', state:'edit',
+   task:'tokens.css에 다크 팔레트 추가하고 라이트 값과 대비 검증', tool:'Edit', target:'src/styles/tokens.css',
+   start:-600, tools:11, tokens:7400, cycle:true,
+   sheet:4,
+   recent:[['-8초','Edit src/styles/tokens.css'],['-40초','Read src/styles/tokens.css'],['-1분','Grep --color-']],
+   log:[['user','tokens.css에 다크 팔레트를 추가해줘'],['tool','Read','src/styles/tokens.css'],['out','118줄 읽음'],['tool','Grep','--color-'],['out','42개 토큰'],['tool','Edit','src/styles/tokens.css'],['out','+46 -0  ([data-theme=dark] 블록)'],['think','surface-2 대비가 3.1:1. 한 단계 밝게.'],['tool','Edit','src/styles/tokens.css'],['out','+1 -1']]},
+  {id:'b2', name:'컴포넌트', type:'general-purpose', model:'fable-5.1', state:'read',
+   task:'Button, Card, Nav에 하드코딩된 색을 토큰으로 교체', tool:'Read', target:'src/components/Card.tsx',
+   start:-520, tools:7, tokens:5100,
+   sheet:1,
+   recent:[['-3초','Read src/components/Card.tsx'],['-30초','Grep #[0-9a-f]{6}'],['-50초','Glob src/components/**']],
+   log:[['user','Button, Card, Nav의 하드코딩 색상을 토큰으로 바꿔줘'],['tool','Glob','src/components/**/*.tsx'],['out','23개 파일'],['tool','Grep','#[0-9a-fA-F]{6}'],['out','Button.tsx 3곳, Card.tsx 5곳, Nav.tsx 2곳'],['tool','Read','src/components/Button.tsx'],['out','64줄 읽음'],['tool','Read','src/components/Card.tsx']]},
+];
+// 세 번째 세션: 인프라 스크립트 (작업 끝, 사용자 검토 대기)
+const S3 = [
+  {id:'main', name:'메인 세션', type:'오케스트레이터', model:'fable-5.1', state:'idle',
+   task:'배포 스크립트 정리. 결과 요약을 올려두고 사용자 검토를 기다리는 중',
+   tool:'', target:'', start:-3100, tools:9, tokens:21500,
+   sheet:0,
+   recent:[['-12분','결과 요약 작성'],['-14분','정리 에이전트 보고 수신'],['-50분','작업 시작']],
+   log:[['user','deploy/ 아래 스크립트 중복 정리해줘'],['tool','Agent','정리: deploy/*.sh 공통 함수 추출'],['sys','정리 에이전트 완료 · 3개 파일 → lib.sh + 2개'],['ok','요약 작성 완료. 검토 후 커밋 여부를 알려주세요.']]},
+  {id:'c1', name:'정리', type:'general-purpose', model:'sonnet-5.5', state:'done',
+   task:'deploy/*.sh에서 중복 함수를 lib.sh로 추출', tool:'', target:'', start:-3000, end:-840, tools:14, tokens:9900,
+   spot:{x:800,y:228}, summary:'deploy/lib.sh 신규 · build.sh, release.sh 각각 40줄 감소',
+   sheet:3,
+   recent:[['-14분','메인 세션에 결과 보고'],['-16분','Bash bash -n deploy/*.sh'],['-20분','Write deploy/lib.sh']],
+   log:[['user','deploy/*.sh의 중복 함수를 lib.sh로 추출해줘'],['tool','Glob','deploy/*.sh'],['out','3개 파일'],['tool','Read','deploy/build.sh'],['out','120줄 읽음'],['tool','Write','deploy/lib.sh'],['out','새 파일 · 58줄'],['tool','Edit','deploy/build.sh'],['out','+2 -41'],['tool','Edit','deploy/release.sh'],['out','+2 -39'],['tool','Bash','bash -n deploy/*.sh'],['ok','문법 오류 없음'],['ok','완료 · 보고서 전송']]},
+];
+const SESSIONS = [
+  {id:'s1', name:'payment-service', title:'결제 모듈 리팩터링', desc:'메인 세션이 서브에이전트 5명에게 분배', goal:['refund API 끝내기','리뷰 전 테스트 통과'], baseElapsed:1870, agents:S1},
+  {id:'s2', name:'blog-frontend',   title:'다크 모드 테마 적용', desc:'토큰 교체와 컴포넌트 수정을 나눠 진행', goal:['토큰 먼저, 컴포넌트 다음','대비 4.5:1 지키기'], baseElapsed:640, agents:S2},
+  {id:'s3', name:'infra-scripts',   title:'배포 스크립트 정리', desc:'작업 끝. 결과 검토를 기다리는 중', goal:['중복 함수 lib.sh로','커밋 전 검토 받기'], baseElapsed:3100, agents:S3},
+];
+const MAIN_DESK = {x:404,y:150};
+const DESK_SLOTS = [{x:66,y:312},{x:236,y:312},{x:406,y:312},{x:576,y:312}];
+const SOFA_SPOTS = [{x:800,y:228},{x:846,y:228},{x:892,y:228}];
+let session = SESSIONS[0], AGENTS = session.agents;
+
+/* ------------------------------------------------------------------ 사무실 구성 */
+const office = document.getElementById('office'), links = document.getElementById('links');
+let frame = 0, selected = null, drawerAgent = null, filter = null;
+const t0 = Date.now();
+const CHAR_W = FW, CHAR_H = FH;
+// 캐릭터는 책상 뒤 오른쪽(모니터 옆)에 앉음
+const seatOf = a => { const boss = a.id==='main'; return {x: a.desk.x + (boss?96:72) - CHAR_W/2, y: a.desk.y - CHAR_H + 22}; };
+
+function deskEl(a){
+  const d = document.createElement('div');
+  d.className = 'desk' + (a.id==='main'?' boss':''); d.style.left = a.desk.x+'px'; d.style.top = a.desk.y+'px'; d.dataset.for = a.id;
+  d.innerHTML = `<div class="legs"></div><div class="monitor"><div class="screen"></div></div><div class="kb"></div><div class="mug"></div>${a.id==='main'?'<div class="lamp"></div>':''}<div class="nameplate">${a.name}</div>`;
+  const c = document.createElement('div'); c.className='chair'; const s = seatOf(a); c.style.left = (s.x+4)+'px'; c.style.top = (s.y+16)+'px';
+  office.appendChild(c); return d;
+}
+function agentEl(a){
+  const el = document.createElement('button');
+  el.className = 'agent'; el.id = 'ag-'+a.id; el.setAttribute('aria-label', a.name);
+  el.innerHTML = `<div class="body"><div class="spr"></div></div><div class="bubble"></div>`;
+  el.addEventListener('click', e=>{ e.stopPropagation(); openPop(a, el); });
+  return el;
+}
+function emptyDeskEl(slot, i){
+  const d = document.createElement('div'); d.className='desk empty'; d.style.left=slot.x+'px'; d.style.top=slot.y+'px'; d.dataset.screen='off';
+  d.innerHTML = `<div class="legs"></div><div class="monitor"><div class="screen"></div></div><div class="kb"></div><div class="nameplate">빈 자리</div>`;
+  const c = document.createElement('div'); c.className='chair'; c.style.left=(slot.x+76-CHAR_W/2+4)+'px'; c.style.top=(slot.y-CHAR_H+38)+'px'; office.appendChild(c); return d;
+}
+function buildOffice(){
+  office.querySelectorAll('.desk,.chair,.agent').forEach(e=>e.remove());
+  AGENTS.forEach((a,i)=>{ a.desk = i===0 ? MAIN_DESK : (DESK_SLOTS[i-1] || {x:0,y:0}); });
+  AGENTS.forEach(a=>{ if(a.desk.x) office.appendChild(deskEl(a)); });
+  DESK_SLOTS.forEach((slot,i)=>{ if(!AGENTS[i+1]) office.appendChild(emptyDeskEl(slot,i)); });
+  AGENTS.forEach(a=>office.appendChild(agentEl(a)));
+}
+const matchesFilter = a => !filter || a.id==='main' || a.state===filter;
+
+function positionAgent(a){
+  const el = document.getElementById('ag-'+a.id), s = STATES[a.state];
+  if(!el) return;
+  let p;
+  if(a.id!=='main' && (a.state==='done' || a.state==='idle')) p = a.spot || SOFA_SPOTS[0]; else p = seatOf(a);
+  const prevX = parseFloat(el.style.left); if(!isNaN(prevX) && prevX!==p.x){ a.walkUntil = Date.now()+950; a.walkDir = p.x>prevX ? 'right' : 'left'; }
+  el.style.left = p.x+'px'; el.style.top = p.y+'px';
+  el.dataset.state = a.state; el.classList.toggle('selected', selected===a.id);
+  el.setAttribute('aria-label', `${a.name} · ${s.label}`);
+  const b = el.querySelector('.bubble'); b.textContent = s.bubble; b.className = 'bubble ' + (a.state==='wait'?'wait':a.state==='done'?'done':'');
+  const desk = office.querySelector(`.desk[data-for="${a.id}"]`); if(desk){ desk.dataset.screen = s.screen; desk.style.setProperty('--sc', s.raw); }
+  el.style.opacity = matchesFilter(a) ? 1 : .25;
+}
+function drawSprites(){
+  AGENTS.forEach(a=>{
+    const el = document.querySelector('#ag-'+a.id+' .spr'); if(!el) return;
+    const walking = a.walkUntil && Date.now() < a.walkUntil;
+    el.style.cssText = walking ? frameStyle(a, 'walk', frame, 'right') + (a.walkDir==='left' ? ';transform:scaleX(-1)' : '') : frameStyle(a, STATE_ANIM[a.state], frame);
+  });
+  frame++;
+}
+function drawLinks(){
+  const main = AGENTS[0]; const sx = main.desk.x+78, sy = main.desk.y+58;
+  links.innerHTML = AGENTS.slice(1).map(a=>{
+    const el = document.getElementById('ag-'+a.id); if(!el) return '';
+    const ex = parseFloat(el.style.left)+CHAR_W/2, ey = parseFloat(el.style.top)-26;
+    const my = (sy+ey)/2; const cls = a.state==='done'?'done':(a.state==='wait'?'':'active');
+    return `<path class="${cls}" d="M${sx},${sy} C${sx},${my} ${ex},${my} ${ex},${ey}" stroke="${STATES[a.state].raw}"/>`;
+  }).join('');
+}
+const CHIP_ORDER = ['edit','read','run','wait','done'];
+const CHIP_SHORT = {edit:'작성', read:'읽기', run:'실행', wait:'대기', done:'완료'};
+function renderStatus(){
+  const c = {}; AGENTS.slice(1).forEach(a=>{ c[a.state]=(c[a.state]||0)+1; });
+  document.getElementById('chips').innerHTML = CHIP_ORDER.map(k=>{ const s=STATES[k], n=c[k]||0;
+    return `<button class="chip ${n?'':'zero'}" data-f="${k}" aria-pressed="${filter===k}" title="${s.label}만 보기"><span class="dot" style="background:${s.raw}"></span>${CHIP_SHORT[k]} <b>${n}</b></button>`; }).join('');
+  document.getElementById('sb-name').textContent = session.name;
+  document.getElementById('sb-title').textContent = session.title;
+  document.getElementById('sb-desc').textContent = session.desc;
+  document.getElementById('board-1').textContent = session.goal[0]; document.getElementById('board-2').textContent = session.goal[1];
+}
+const sessionTone = s => { const st = s.agents.slice(1).map(a=>a.state); const m = s.agents[0].state;
+  if(st.includes('wait')) return 'wait'; if(st.some(x=>['edit','read','run'].includes(x)) || m==='delegating') return 'edit'; if(st.length && st.every(x=>x==='done')) return 'done'; return 'idle'; };
+function renderTabs(){
+  document.getElementById('stabs').innerHTML = SESSIONS.map(s=>{ const tone = sessionTone(s); const subs = s.agents.length-1;
+    return `<button class="stab" role="tab" data-s="${s.id}" aria-selected="${s===session}"><span class="sdot ${tone==='wait'?'wait':''}" style="background:${STATES[tone].raw}"></span>${s.name}<span class="scount">${subs}</span></button>`; }).join('');
+  const total = SESSIONS.reduce((n,s)=>n+s.agents.length-1,0), waiting = SESSIONS.filter(s=>sessionTone(s)==='wait').length;
+  document.getElementById('total-agents').textContent = `세션 ${SESSIONS.length} · 서브에이전트 ${total}` + (waiting ? ` · 확인 필요 ${waiting}` : '');
+}
+document.getElementById('chips').addEventListener('click', e=>{ const b = e.target.closest('button'); if(!b) return; filter = filter===b.dataset.f ? null : b.dataset.f; renderAll(); });
+document.getElementById('stabs').addEventListener('click', e=>{ const b = e.target.closest('.stab'); if(!b) return; loadSession(SESSIONS.find(s=>s.id===b.dataset.s)); });
+function renderAll(){ AGENTS.forEach(positionAgent); drawLinks(); renderStatus(); renderTabs(); }
+function loadSession(s){
+  if(s===session && office.querySelector('.agent')) return;
+  closePop(); closeDrawer(); session = s; AGENTS = s.agents; filter = null;
+  buildOffice(); renderAll(); drawSprites();
+}
+setInterval(drawSprites, 380);
+
+/* ------------------------------------------------------------------ 시간 */
+const fmt = s => { s=Math.max(0,Math.floor(s)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+const elapsedOf = a => { const now=(Date.now()-t0)/1000; return (a.end!=null ? a.end : now) - a.start; };
+setInterval(()=>{
+  document.getElementById('clock').textContent = fmt((Date.now()-t0)/1000 + session.baseElapsed);
+  if(drawerAgent) document.getElementById('d-elapsed').textContent = fmt(elapsedOf(drawerAgent));
+  if(selected){ const a = AGENTS.find(x=>x.id===selected); const e = document.querySelector('#pop .elapsed'); if(e) e.textContent = fmt(elapsedOf(a)); }
+},1000);
+
+/* ------------------------------------------------------------------ 팝오버 */
+const pop = document.getElementById('pop');
+function openPop(a, el, refresh=false){
+  selected = a.id; AGENTS.forEach(positionAgent);
+  const s = STATES[a.state];
+  const now = a.state==='done'
+    ? `<div class="now" style="--sc:${s.raw}"><div><div class="tool">보고 완료</div><div class="target">${a.summary}</div></div></div>`
+    : `<div class="now" style="--sc:${s.raw}"><div><div class="tool">${a.tool}</div><div class="target">${a.target}</div></div></div>`;
+  const warn = a.state==='wait' ? `<div class="warn"><b>${a.waitReason}</b>${a.waitDetail}</div>` : '';
+  const foot = a.state==='wait'
+    ? `<button class="btn ok" data-act="allow">허용</button><button class="btn danger" data-act="deny">거부</button><button class="btn" data-act="detail">상세히</button>`
+    : `<button class="btn primary" data-act="detail">상세히 · 터미널 열기</button>${a.id!=='main'?'<button class="btn danger" data-act="stop">중지</button>':''}`;
+  pop.innerHTML = `
+    <header>${avatarHTML(a,'avatar')}<div><h2>${a.name}</h2><div class="meta"><span class="state" style="color:${s.raw}">${s.label}</span><span>${a.type}</span><span>·</span><span>${a.model}</span></div></div></header>
+    <div class="section"><div class="k">맡은 일</div><div class="v">${a.task}</div></div>
+    <div class="section"><div class="k">${a.state==='done'?'결과':'지금 하는 일'}</div>${now}</div>
+    ${warn}
+    <div class="section stats"><div><div class="n elapsed">${fmt(elapsedOf(a))}</div><div class="k">경과</div></div><div><div class="n">${a.tools}</div><div class="k">도구 호출</div></div><div><div class="n">${(a.tokens/1000).toFixed(1)}k</div><div class="k">토큰</div></div></div>
+    <div class="section"><div class="k">최근 활동</div><ul class="recent">${a.recent.map(([t,x])=>`<li><span>${t}</span><span>${x}</span></li>`).join('')}</ul></div>
+    <footer>${foot}</footer>`;
+  pop.className = 'pop show' + (refresh?' still':'');
+  const r = el.getBoundingClientRect(), W = 320, H = pop.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+  let left, top;
+  if(r.bottom + 14 + H <= vh - 12){ top = r.bottom + 14; }                       // 아래
+  else if(r.top - 14 - H >= 12){ top = r.top - 14 - H; pop.classList.add('flip'); } // 위
+  else {                                                                           // 옆
+    pop.classList.add('side'); top = Math.max(12, Math.min(vh - H - 12, r.top + r.height/2 - 60));
+    if(r.right + 16 + W <= vw - 12) left = r.right + 16; else { left = r.left - 16 - W; pop.classList.add('leftside'); }
+    pop.style.setProperty('--ay', (r.top + r.height/2 - top)+'px');
+  }
+  if(left===undefined){ left = Math.max(12, Math.min(vw - W - 12, r.left + r.width/2 - W/2)); pop.style.setProperty('--ax', (r.left + r.width/2 - left)+'px'); }
+  pop.style.left = left+'px'; pop.style.top = top+'px';
+  pop.onclick = e=>{
+    const b = e.target.closest('[data-act]'); if(!b) return; const act = b.dataset.act;
+    if(act==='detail'){ openDrawer(a); closePop(); }
+    if(act==='allow'){ a.state='run'; a.tool='Bash'; a.target='rm -rf dist/ && npm run build'; a.log.push(['sys','사용자가 허용함'],['out','> tsc -p tsconfig.build.json'],['out','빌드 중…']); a.recent.unshift(['방금','Bash 권한 허용됨']); renderAll(); openPop(a, el, true); }
+    if(act==='deny'){ a.state='edit'; a.tool='Edit'; a.target='src/api/refund.ts'; a.log.push(['sys','사용자가 거부함 · 빌드 없이 리뷰 계속'],['tool','Edit','src/api/refund.ts']); a.recent.unshift(['방금','Bash 권한 거부됨']); renderAll(); openPop(a, el, true); }
+    if(act==='stop'){ finish(a, '사용자가 중지함', ['err','사용자가 에이전트를 중지함']); closePop(); }
+  };
+}
+function finish(a, summary, logLine){
+  a.state='done'; a.end=(Date.now()-t0)/1000; a.summary=summary; a.log.push(logLine);
+  const used = AGENTS.filter(x=>x!==a && x.spot).map(x=>x.spot.x); a.spot = SOFA_SPOTS.find(s=>!used.includes(s.x)) || SOFA_SPOTS[2];
+  a.recent.unshift(['방금','메인 세션에 결과 보고']); renderAll();
+}
+function closePop(){ pop.classList.remove('show'); selected=null; AGENTS.forEach(positionAgent); }
+document.addEventListener('click', e=>{ if(!pop.contains(e.target)) closePop(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePop(); closeDrawer(); } });
+
+/* ------------------------------------------------------------------ 드로어 / 터미널 */
+const drawer = document.getElementById('drawer'), term = document.getElementById('term'), work = document.getElementById('work'), scrim = document.getElementById('scrim');
+let streamIdx = 0;
+function lineHTML(l, a){
+  const [k,x,y] = l, s = STATES[a.state];
+  switch(k){
+    case 'user': return `<div class="l user">› ${x}</div>`;
+    case 'tool': return `<div class="l tool" style="--sc:${s.raw}">● <span class="n">${x}</span>(${y})</div>`;
+    case 'out':  return `<div class="l out">${x}</div>`;
+    case 'ok':   return `<div class="l out ok">${x}</div>`;
+    case 'err':  return `<div class="l out err">${x}</div>`;
+    case 'think':return `<div class="l think">✱ ${x}</div>`;
+    default:     return `<div class="l sys">— ${x}</div>`;
+  }
+}
+function renderTerm(a){
+  const live = ['edit','read','run','delegating'].includes(a.state);
+  term.innerHTML = `<div class="l sys">— 세션 ${a.id} · ${a.type} · ${a.model} · 시작 ${fmt(-a.start)} 전</div>` + a.log.slice(0, streamIdx).map(l=>lineHTML(l,a)).join('') + (live ? `<div class="l"><span class="cursor"></span></div>` : `<div class="l sys">— 세션 종료</div>`);
+  term.scrollTop = term.scrollHeight;
+}
+const workHTML = a => { const s=STATES[a.state]; return `<ul><li><span style="color:var(--green)">✓</span>관련 파일 위치 파악</li><li><span style="color:var(--green)">✓</span>기존 패턴 읽기</li><li><span style="color:${s.raw}">${a.state==='done'?'✓':'▶'}</span>${a.task}</li><li><span style="color:var(--muted)">○</span>메인 세션에 결과 보고</li></ul>`; };
+const filesHTML = `<ul><li><span style="color:var(--amber)">M</span>src/api/refund.ts <span style="color:var(--muted);margin-left:auto">+36 −2</span></li><li><span style="color:var(--green)">A</span>src/api/refund.schema.ts <span style="color:var(--muted);margin-left:auto">+41</span></li><li><span style="color:var(--amber)">M</span>src/api/router.ts <span style="color:var(--muted);margin-left:auto">+2</span></li></ul>`;
+function openDrawer(a){
+  drawerAgent = a; streamIdx = Math.min(a.log.length, 6); const s = STATES[a.state];
+  document.getElementById('d-avatar').innerHTML = `<div class="spr" style="${frameStyle(a,'idle',0)}"></div>`;
+  document.getElementById('d-name').textContent = a.name;
+  document.getElementById('d-sub').innerHTML = `<span style="color:${s.raw}">${s.label}</span> · ${a.task}`;
+  document.getElementById('d-tools').textContent = a.tools; document.getElementById('d-tokens').textContent = (a.tokens/1000).toFixed(1)+'k';
+  document.getElementById('d-model').textContent = a.model; document.getElementById('d-elapsed').textContent = fmt(elapsedOf(a));
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected', x.dataset.tab==='term'));
+  term.classList.remove('hidden'); work.classList.remove('show');
+  drawer.classList.add('open'); scrim.classList.add('show'); renderTerm(a);
+}
+function closeDrawer(){ drawer.classList.remove('open'); scrim.classList.remove('show'); drawerAgent=null; }
+document.getElementById('d-close').onclick = closeDrawer; scrim.onclick = closeDrawer;
+document.getElementById('d-stop').onclick = ()=>{ if(!drawerAgent||drawerAgent.id==='main') return; const a=drawerAgent; finish(a,'사용자가 중지함',['err','사용자가 에이전트를 중지함']); streamIdx=a.log.length; openDrawer(a); };
+document.querySelector('.tabs').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected', x===b));
+  const tab = b.dataset.tab; term.classList.toggle('hidden', tab!=='term'); work.classList.toggle('show', tab!=='term');
+  if(tab==='files') work.innerHTML = filesHTML; else if(tab==='work' && drawerAgent) work.innerHTML = workHTML(drawerAgent);
+});
+setInterval(()=>{
+  if(!drawerAgent) return;
+  if(streamIdx < drawerAgent.log.length){ streamIdx++; renderTerm(drawerAgent); }
+  else if(['edit','read','run'].includes(drawerAgent.state) && Math.random()<.35){
+    const a = drawerAgent;
+    const extra = {edit:[['tool','Edit',a.target],['out',`+${2+Math.floor(Math.random()*8)} -${Math.floor(Math.random()*3)}`]],
+                   read:[['tool','Read',`src/auth/${['session','client','store','types'][Math.floor(Math.random()*4)]}.ts`],['out',`${20+Math.floor(Math.random()*80)}줄 읽음`]],
+                   run:[['out',`✓ tests/${['payments.webhook','payments.retry','payments.idempotency'][Math.floor(Math.random()*3)]}.spec.ts (${3+Math.floor(Math.random()*9)})`]]}[a.state];
+    a.log.push(...extra); a.tools += extra.filter(l=>l[0]==='tool').length; a.tokens += 120+Math.floor(Math.random()*400);
+    streamIdx = a.log.length; renderTerm(a);
+    document.getElementById('d-tools').textContent = a.tools; document.getElementById('d-tokens').textContent = (a.tokens/1000).toFixed(1)+'k';
+  }
+}, 900);
+
+/* ------------------------------------------------------------------ 상태 변화 시뮬레이션 */
+setInterval(()=>{
+  AGENTS.forEach(a=>{
+    if(a.cycle){
+      if(a.state==='edit' && Math.random()<.25){ a._editTarget = a.target; a.state='run'; a.tool='Bash'; a.target='npx tsc --noEmit'; a.recent.unshift(['방금','Bash npx tsc --noEmit']); }
+      else if(a.state==='run' && Math.random()<.5){ a.state='edit'; a.tool='Edit'; a.target=a._editTarget||a.target; a.recent.unshift(['방금','Edit '+a.target]); }
+    }
+    if(a.finishChance && a.state==='read' && Math.random()<a.finishChance) finish(a, '호출 경로 4곳 정리 · session.ts rotate()가 실제 갱신 지점', ['ok','완료 · 보고서 전송']);
+    a.recent = a.recent.slice(0,3);
+  });
+  renderAll();
+  if(selected){ const a = AGENTS.find(x=>x.id===selected); openPop(a, document.getElementById('ag-'+a.id), true); }
+}, 4000);
+
+loadSession(session);
+
+// 데모용: URL 해시로 세션/팝오버/드로어 바로 열기 (예: #session=s2, #pop=a4, #drawer=a2)
+const demo = new URLSearchParams(location.hash.slice(1));
+if(demo.get('session')){ const s = SESSIONS.find(x=>x.id===demo.get('session')); if(s) loadSession(s); }
+if(demo.get('pop')){ const a = AGENTS.find(x=>x.id===demo.get('pop')); if(a) setTimeout(()=>openPop(a, document.getElementById('ag-'+a.id)), 50); }
+if(demo.has('measure')){ // 메모리 측정용: N초 뒤 body에 기록 (#measure=20000)
+  const wait = +demo.get('measure') || 20000;
+  const snap = () => ({ t: Math.round(performance.now()), heapUsedMB: performance.memory ? +(performance.memory.usedJSHeapSize/1048576).toFixed(2) : null, heapTotalMB: performance.memory ? +(performance.memory.totalJSHeapSize/1048576).toFixed(2) : null, nodes: document.getElementsByTagName('*').length, logLines: AGENTS.reduce((n,a)=>n+a.log.length,0) });
+  const samples=[snap()]; const iv=setInterval(()=>samples.push(snap()), 5000);
+  setTimeout(()=>{ clearInterval(iv); samples.push(snap()); document.body.dataset.mem = JSON.stringify(samples); }, wait);
+}
+if(demo.get('drawer')){ const a = AGENTS.find(x=>x.id===demo.get('drawer')); if(a) setTimeout(()=>{ openDrawer(a); streamIdx=a.log.length; renderTerm(a); }, 50); }
+</script>
+</body>
+</html>
