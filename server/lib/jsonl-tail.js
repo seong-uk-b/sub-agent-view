@@ -9,9 +9,10 @@ const NL = 10;
  * - 깨진 줄은 건너뛴다. 파일이 없거나 잘리면 처음부터 다시 읽는다. 절대 throw 하지 않는다.
  */
 export class JsonlTailer {
-  constructor(filePath, { lineFilter } = {}) {
+  constructor(filePath, { lineFilter, chunkSize = 1024 * 1024 } = {}) {
     this.filePath = filePath;
     this.lineFilter = lineFilter || null;
+    this.chunkSize = chunkSize;      // 큰 파일도 이 크기씩 나눠 읽어 메모리 피크를 낮춘다
     this.offset = 0;
     this.partial = Buffer.alloc(0);
   }
@@ -23,10 +24,16 @@ export class JsonlTailer {
       const { size } = await handle.stat();
       if (size < this.offset) { this.offset = 0; this.partial = Buffer.alloc(0); }
       if (size === this.offset) return [];
-      const chunk = Buffer.alloc(size - this.offset);
-      await handle.read(chunk, 0, chunk.length, this.offset);
-      this.offset = size;
-      return this.#split(Buffer.concat([this.partial, chunk]));
+      const out = [];
+      while (this.offset < size) {
+        const len = Math.min(this.chunkSize, size - this.offset);
+        const chunk = Buffer.alloc(len);
+        const { bytesRead } = await handle.read(chunk, 0, len, this.offset);
+        if (!bytesRead) break;
+        this.offset += bytesRead;
+        out.push(...this.#split(Buffer.concat([this.partial, chunk.subarray(0, bytesRead)])));
+      }
+      return out;
     } catch {
       return [];
     } finally {
@@ -46,7 +53,7 @@ export class JsonlTailer {
       if (this.lineFilter && !this.lineFilter(line)) continue;
       try { out.push(JSON.parse(line)); } catch { /* 깨진 줄 무시 */ }
     }
-    this.partial = buf.subarray(start);
+    this.partial = Buffer.from(buf.subarray(start));
     return out;
   }
 }

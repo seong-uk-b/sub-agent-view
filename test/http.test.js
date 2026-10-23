@@ -112,3 +112,11 @@ test('server only listens on 127.0.0.1', async (t) => {
   const { server } = await boot(t);
   assert.equal(server.address().address, '127.0.0.1');
 });
+
+test('GET /api/health reports memory and counts', async (t) => {
+  const { base } = await boot(t);
+  const r = await get(base + '/api/health');
+  const h = JSON.parse(r.body);
+  assert.equal(r.status, 200);
+  assert.ok(h.rssMB > 0 && h.heapUsedMB > 0); assert.equal(h.sessions, 0); assert.equal(typeof h.uptimeSec, 'number');
+});

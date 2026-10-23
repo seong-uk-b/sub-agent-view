@@ -67,3 +67,14 @@ test('handles multi-byte UTF-8 split across reads', async () => {
   await fs.appendFile(file, full.subarray(8));
   assert.deepEqual(await t.read(), [{ k: '한글' }]);
 });
+
+test('reads files larger than one chunk without losing or splitting lines', async () => {
+  const file = await tmpFile('');
+  const line = JSON.stringify({ pad: 'p'.repeat(100_000), k: '한글' }) + '\n';
+  await fs.writeFile(file, line.repeat(30));                 // ~3MB, 청크(1MB) 경계가 줄 중간에 걸림
+  const t = new JsonlTailer(file, { chunkSize: 1024 * 1024 });
+  const recs = await t.read();
+  assert.equal(recs.length, 30);
+  assert.ok(recs.every((r) => r.k === '한글'));
+  assert.equal(t.offset, Buffer.byteLength(line) * 30);
+});

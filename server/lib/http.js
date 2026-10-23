@@ -21,6 +21,10 @@ export function createServer({ store, webDir, log = () => {} }) {
       if (req.method !== 'GET') return send(res, 405, 'method not allowed');
       if (url.pathname === '/events') return handleEvents(req, res, url);
       if (url.pathname === '/api/snapshot') return json(res, store.snapshot());
+      if (url.pathname === '/api/health') {
+        const m = process.memoryUsage(); const snap = store.snapshot();
+        return json(res, { rssMB: +(m.rss / 1048576).toFixed(1), heapUsedMB: +(m.heapUsed / 1048576).toFixed(1), sessions: snap.sessions.length, agents: snap.sessions.reduce((n, s) => n + s.agents.length, 0), uptimeSec: Math.floor(process.uptime()) });
+      }
       const m = /^\/api\/agent\/([^/]+)\/([^/]+)\/lines$/.exec(url.pathname);
       if (m) {
         const after = Number(url.searchParams.get('after')) || 0;

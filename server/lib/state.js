@@ -78,7 +78,7 @@ export class Store extends EventEmitter {
       startedAt: now, endedAt: null, lastEventAt: now, lastTextAt: 0,
       toolCalls: 0, outputTokens: 0, contextTokens: 0,
       recent: [], waitReason: '', waitDetail: '', summary: '', depth: info.depth || 1, parentName: info.parentName || '',
-      pendingTools: new Set(), seenTools: new Set(), seenMessages: new Set(),
+      lastText: '', touched: false, pendingTools: new Set(), seenTools: new Set(), seenMessages: new Set(),
       lines: [], lineSeq: 0,
     };
   }
@@ -146,6 +146,8 @@ export class Store extends EventEmitter {
     for (const e of events) {
       if (!e || typeof e !== 'object') continue;
       s.lastActivityAt = Math.max(s.lastActivityAt, e.ts || 0);
+      if (e.ts && e.ts < a.startedAt) a.startedAt = e.ts;
+      if (e.ts && e.ts < s.startedAt) s.startedAt = e.ts;
       switch (e.kind) {
         case 'tool_use':
           this.#toolStart(a, e.id, e.name, e.input, e.ts);
@@ -156,7 +158,11 @@ export class Store extends EventEmitter {
           this.#pushLine(a, { kind: e.isError ? 'err' : 'out', text: firstChars(e.text, 4000), ts: e.ts });
           break;
         case 'text':
-          if (e.role === 'assistant') { a.lastTextAt = e.ts; this.#touch(a, e.ts); }
+          if (e.role === 'assistant') { a.lastTextAt = e.ts; a.lastText = e.text; this.#touch(a, e.ts); }
+          if (e.role === 'user' && e.human) {
+            if (a.id === MAIN) s.lastPrompt = firstLine(e.text);
+            else if (!a.task) a.task = firstChars(e.text, 400);
+          }
           this.#pushLine(a, { kind: e.role === 'user' ? 'user' : 'think', text: firstChars(e.text, 4000), ts: e.ts });
           break;
         case 'usage':
@@ -191,7 +197,7 @@ export class Store extends EventEmitter {
       if (spawn.prompt) a.task = firstChars(spawn.prompt, 400);
       if (!a.name && spawn.description) a.name = spawn.description;
     }
-    if (meta.finished && LIVE.has(a.state)) this.#finish(a, a.summary);
+    if (meta.finished && LIVE.has(a.state)) this.#finish(a, a.summary, a.lastEventAt);
     this.#schedulePatch();
   }
 
@@ -204,7 +210,7 @@ export class Store extends EventEmitter {
       let liveSubs = 0;
       for (const a of s.agents.values()) {
         if (a.id === MAIN) continue;
-        if (WORKING.has(a.state) && a.lastTextAt && a.lastTextAt >= a.lastEventAt && now - a.lastEventAt >= doneIdleMs) this.#finish(a, a.summary);
+        if (WORKING.has(a.state) && a.lastTextAt && a.lastTextAt >= a.lastEventAt && now - a.lastEventAt >= doneIdleMs) this.#finish(a, a.summary, a.lastEventAt);
         if (a.state === 'done' && a.endedAt != null && now - a.endedAt >= goneAfterMs) this.#setState(a, 'gone');
         if (LIVE.has(a.state)) liveSubs++;
       }
@@ -301,9 +307,9 @@ export class Store extends EventEmitter {
     this.#touch(a, ts);
   }
 
-  #finish(a, summary) {
-    a.summary = summary || a.summary;
-    a.endedAt = this.opts.now();
+  #finish(a, summary, endedAt = null) {
+    a.summary = summary || a.summary || firstChars(a.lastText, SUMMARY_MAX);
+    a.endedAt = endedAt ?? this.opts.now();
     a.pendingTools.clear();
     this.#setState(a, 'done');
     this.#pushLine(a, { kind: 'ok', text: a.summary ? `완료 · ${a.summary}` : '완료', ts: a.endedAt });
@@ -311,7 +317,9 @@ export class Store extends EventEmitter {
   }
 
   #touch(a, ts) {
-    a.lastEventAt = Math.max(a.lastEventAt, ts || this.opts.now());
+    const t = ts || this.opts.now();
+    a.lastEventAt = a.touched ? Math.max(a.lastEventAt, t) : t;   // 첫 이벤트는 과거 시각이어도 그대로
+    a.touched = true;
     const s = this.sessions.get(a.sessionId); if (s) s.lastActivityAt = Math.max(s.lastActivityAt, a.lastEventAt);
   }
 

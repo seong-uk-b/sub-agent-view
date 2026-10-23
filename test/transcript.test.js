@@ -30,9 +30,12 @@ test('Agent tool_use yields spawn', async () => {
   assert.deepEqual(spawn, { kind: 'spawn', toolUseId: 'toolu_01', agentType: 'Explore', description: '탐색-auth', prompt: 'src/auth 아래 토큰 갱신 로직 위치를 찾아줘', ts: Date.parse('2026-10-23T01:45:00.000Z') });
 });
 
-test('user string content yields text(user)', async () => {
+test('user string content yields text(user) with human flag', async () => {
   const recs = await records('subagent.jsonl');
-  assert.deepEqual(normalizeRecord(recs[0]), [{ kind: 'text', role: 'user', text: 'src/auth 아래 토큰 갱신 로직 위치를 찾아줘', ts: Date.parse('2026-10-23T01:45:03.623Z') }]);
+  assert.deepEqual(normalizeRecord(recs[0]), [{ kind: 'text', role: 'user', text: 'src/auth 아래 토큰 갱신 로직 위치를 찾아줘', human: true, ts: Date.parse('2026-10-23T01:45:03.623Z') }]);
+  assert.equal(normalizeRecord({ type: 'user', parentUuid: 'x', turnOrigin: 'human', message: { content: '안녕' } })[0].human, true);
+  assert.equal(normalizeRecord({ type: 'user', parentUuid: 'x', promptSource: 'system', turnOrigin: 'task_notification', message: { content: '<task-notification>' } })[0].human, false);
+  assert.equal(normalizeRecord({ type: 'user', parentUuid: null, isMeta: true, message: { content: '[Image]' } })[0].human, false);
 });
 
 test('user tool_result yields tool_result; array content is joined', async () => {
@@ -57,6 +60,11 @@ test('MAIN_LINE_FILTER keeps user/assistant/system lines and drops blobs without
   assert.equal(MAIN_LINE_FILTER(lines[2]), false);  // api-request-blob (200KB)
   assert.equal(MAIN_LINE_FILTER(lines[4]), true);   // system
   assert.equal(MAIN_LINE_FILTER('{"type":"attachment"}'), false);
+  // 실제 assistant 줄: message가 먼저 오고 최상위 type은 줄 끝에 있다
+  const tailLine = '{"parentUuid":"x","message":{"type":"message","content":[{"type":"text","text":"' + 'y'.repeat(2000) + '"}]},"type":"assistant","uuid":"u"}';
+  assert.equal(MAIN_LINE_FILTER(tailLine), true);
+  const blobTail = '{"type":"api-request-blob","blob":"' + 'z'.repeat(2000) + '"}';
+  assert.equal(MAIN_LINE_FILTER(blobTail), false);
 });
 
 test('readMeta returns fields and null when missing', async () => {

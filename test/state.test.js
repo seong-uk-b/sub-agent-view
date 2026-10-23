@@ -175,6 +175,34 @@ test('patch is emitted once for a burst of events', async () => {
   assert.equal(n, 1);
 });
 
+test('human user text from transcripts sets session title and agent task fallback', () => {
+  const s = makeStore();
+  s.ensureSession('s1', { cwd: '/home/u/demo' });
+  s.applyMainEvents('s1', [{ kind: 'text', role: 'user', text: '<task-notification>', human: false, ts: T0 }, { kind: 'text', role: 'user', text: '결제 리팩터링\n둘째', human: true, ts: T0 }]);
+  assert.equal(sub(s).title, '결제 리팩터링');
+  s.ensureAgent('s1', 'a1');
+  s.applyAgentEvents('s1', 'a1', [{ kind: 'text', role: 'user', text: 'src/auth 찾아줘', human: true, ts: T0 }]);
+  assert.equal(agentOf(s, 'a1').task, 'src/auth 찾아줘');
+});
+
+test('timestamps from transcripts set startedAt/endedAt and summary falls back to last assistant text', () => {
+  const s = makeStore();
+  s.ensureSession('s1', { cwd: '/home/u/demo' });
+  s.applyMainEvents('s1', [{ kind: 'text', role: 'user', text: '시작', human: true, ts: T0 - 600_000 }]);
+  s.ensureAgent('s1', 'a1');
+  s.applyAgentEvents('s1', 'a1', [
+    { kind: 'text', role: 'user', text: '일 시켜', human: true, ts: T0 - 300_000 },
+    { kind: 'tool_use', id: 't1', name: 'Read', input: { file_path: 'a' }, ts: T0 - 200_000 },
+    { kind: 'text', role: 'assistant', text: '결론은 이렇습니다. ' + 'x'.repeat(300), ts: T0 - 100_000 },
+  ]);
+  s.attachMeta('s1', 'a1', { agentType: 'Explore', description: '탐색', toolUseId: 'none', finished: true, spawnDepth: 1 });
+  const a = agentOf(s, 'a1');
+  assert.equal(a.startedAt, T0 - 300_000);
+  assert.equal(a.endedAt, T0 - 100_000);
+  assert.equal(a.summary.length, 160); assert.ok(a.summary.startsWith('결론은 이렇습니다.'));
+  assert.equal(sub(s).baseElapsed, 600);
+});
+
 test('line event is emitted per line', () => {
   const s = makeStore();
   const got = []; s.on('line', (e) => got.push(e));

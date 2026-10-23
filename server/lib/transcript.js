@@ -46,8 +46,9 @@ export function normalizeRecord(rec) {
   }
 
   if (rec.type === 'user') {
+    const human = rec.isMeta !== true && (rec.turnOrigin === 'human' || rec.promptSource === 'typed' || rec.parentUuid == null);
     if (typeof msg.content === 'string') {
-      return msg.content.trim() ? [{ kind: 'text', role: 'user', text: msg.content, ts }] : [];
+      return msg.content.trim() ? [{ kind: 'text', role: 'user', text: msg.content, human, ts }] : [];
     }
     if (!Array.isArray(msg.content)) return [];
     for (const block of msg.content) {
@@ -55,7 +56,7 @@ export function normalizeRecord(rec) {
       if (block.type === 'tool_result') {
         out.push({ kind: 'tool_result', toolUseId: String(block.tool_use_id ?? ''), text: resultText(block.content), isError: block.is_error === true, ts });
       } else if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-        out.push({ kind: 'text', role: 'user', text: block.text, ts });
+        out.push({ kind: 'text', role: 'user', text: block.text, human, ts });
       }
     }
     return out;
@@ -71,11 +72,16 @@ function resultText(content) {
 const str = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
-/** 메인 트랜스크립트용: 줄 앞 400자에 type이 user/assistant/system인 것만 JSON 파싱 대상. */
+/**
+ * 메인 트랜스크립트용 사전 필터: type이 user/assistant/system인 줄만 JSON 파싱 대상.
+ * 실측(2.1.309): user/system 줄은 최상위 type이 앞 ~130B 안에, assistant 줄은 뒤 ~420B 안에 있다
+ * (message 객체가 먼저 오고 type이 마지막). 그래서 앞 400자 또는 뒤 500자를 본다.
+ */
 const MAIN_TYPE_RE = /"type"\s*:\s*"(user|assistant|system)"/;
-const MAIN_PREFIX = 400; // 실측: type 필드는 최대 ~180바이트 위치에 나온다
+const HEAD = 400, TAIL = 500;
 export function MAIN_LINE_FILTER(rawLine) {
-  return MAIN_TYPE_RE.test(rawLine.slice(0, MAIN_PREFIX));
+  if (MAIN_TYPE_RE.test(rawLine.slice(0, HEAD))) return true;
+  return rawLine.length > HEAD && MAIN_TYPE_RE.test(rawLine.slice(-TAIL));
 }
 
 /** agent-<id>.meta.json → 필요한 필드만. 없거나 깨지면 null. */

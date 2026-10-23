@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sub-agent-view · 작업실</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>sub-agent-view</h1>
+  <nav class="stabs" id="stabs" aria-label="세션"></nav>
+  <div class="top-right"><span id="total-agents"></span></div>
+</header>
+
+<main class="stage">
+ <div class="frame">
+  <div class="statusbar" id="statusbar">
+    <div class="sb-task"><span class="sb-name" id="sb-name"></span><span class="sb-title" id="sb-title"></span><span class="sb-desc" id="sb-desc"></span></div>
+    <div class="sb-chips" id="chips"></div>
+    <div class="sb-clock" id="clock">0:00</div>
+  </div>
+  <div class="office" id="office">
+    <div class="wall">
+      <div class="shelf" style="left:34px"><i></i><i></i></div>
+      <div class="window" style="left:176px">
+        <div class="moon"></div>
+        <div class="bld" style="left:6px;width:18px;height:30px"><i style="left:4px;top:6px"></i><i style="left:10px;top:12px"></i><i style="left:4px;top:20px"></i></div>
+        <div class="bld" style="left:28px;width:14px;height:42px"><i style="left:3px;top:8px"></i><i style="left:8px;top:18px"></i><i style="left:3px;top:30px"></i></div>
+        <div class="bld" style="left:46px;width:22px;height:22px"><i style="left:5px;top:6px"></i><i style="left:14px;top:10px"></i></div>
+        <div class="bld" style="left:84px;width:16px;height:36px"><i style="left:4px;top:8px"></i><i style="left:9px;top:20px"></i></div>
+        <div class="bld" style="left:104px;width:26px;height:26px"><i style="left:5px;top:6px"></i><i style="left:16px;top:6px"></i><i style="left:10px;top:16px"></i></div>
+        <div class="bld" style="left:134px;width:12px;height:46px"><i style="left:3px;top:10px"></i><i style="left:3px;top:30px"></i></div>
+      </div>
+      <div class="clockw" style="left:420px"><i></i></div>
+      <div class="board" style="left:540px" id="board"><b>오늘의 목표</b><span id="board-1"></span><br><span id="board-2" class="sub"></span></div>
+      <div class="shelf" style="left:800px"><i></i><i></i></div>
+    </div>
+    <div class="wall-side left"></div>
+    <div class="wall-side right"></div>
+
+    <div class="lounge">
+      <div class="label">휴게실</div>
+      <div class="plant" style="left:16px;top:20px"></div>
+      <div class="plant" style="left:140px;top:20px"></div>
+      <div class="sofa"><div class="back"></div></div>
+      <div class="ctable"></div>
+      <div class="coffee"></div>
+      <div class="plant" style="left:16px;top:380px"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="divider low"></div>
+
+    <div class="rug boss" style="left:388px;top:100px;width:188px;height:118px"></div>
+    <div class="rug" style="left:44px;top:262px;width:680px;height:150px"></div>
+
+    <div class="cooler" style="left:40px;top:430px"></div>
+    <div class="printer" style="left:80px;top:452px"></div>
+    <div class="bin" style="left:150px;top:462px"></div>
+    <div class="plant" style="left:690px;top:440px"></div>
+    <div class="plant" style="left:30px;top:100px"></div>
+    <div class="plant" style="left:690px;top:100px"></div>
+
+    <svg class="links" id="links" viewBox="0 0 960 540"></svg>
+    <div class="empty" id="empty" hidden></div>
+  </div>
+ </div>
+</main>
+
+<div class="pop" id="pop" role="dialog" aria-label="에이전트 상태"></div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="에이전트 터미널">
+  <div class="head">
+    <div class="avatar" id="d-avatar"></div>
+    <div><h2 id="d-name">—</h2><div class="sub" id="d-sub">—</div></div>
+    <button class="x" id="d-close" aria-label="닫기">✕</button>
+  </div>
+  <div class="strip">
+    <span>경과<b id="d-elapsed">0:00</b></span><span>도구 호출<b id="d-tools">0</b></span><span>토큰<b id="d-tokens">0</b></span><span>컨텍스트<b id="d-ctx">0</b></span><span>모델<b id="d-model">—</b></span>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="term">터미널</button>
+    <button role="tab" aria-selected="false" data-tab="files">변경 파일</button>
+  </div>
+  <div class="term" id="term"></div>
+  <div class="worklist" id="work"></div>
+</aside>
+<div class="conn" id="conn">서버와 연결이 끊겼습니다. 다시 연결 중…</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
