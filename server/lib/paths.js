@@ -14,8 +14,7 @@ export function projectsDir(env = process.env) {
 export function sessionFromTranscriptPath(p) {
   if (!p || !p.endsWith('.jsonl')) return null;
   const projectDir = path.dirname(p);
-  const projectsRoot = path.dirname(projectDir);
-  if (path.basename(projectsRoot) !== 'projects') return null;
+  if (path.basename(projectDir) === 'subagents') return null;   // 서브에이전트 파일은 세션이 아님
   const sessionId = path.basename(p, '.jsonl');
   const sessionDir = path.join(projectDir, sessionId);
   return {

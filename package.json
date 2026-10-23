@@ -6,7 +6,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.js",
     "install-hooks": "node server/index.js --install-hooks"
   }
 }
