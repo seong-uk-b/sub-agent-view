@@ -119,4 +119,35 @@ test('GET /api/health reports memory and counts', async (t) => {
   const h = JSON.parse(r.body);
   assert.equal(r.status, 200);
   assert.ok(h.rssMB > 0 && h.heapUsedMB > 0); assert.equal(h.sessions, 0); assert.equal(typeof h.uptimeSec, 'number');
+  assert.equal(h.pid, process.pid);
+});
+
+import net from 'node:net';
+test('POST /hook reassembles a multibyte body split across TCP chunks', async (t) => {
+  const { store, server, base } = await boot(t);
+  const body = Buffer.from(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's1', cwd: '/x', prompt: '한글 제목입니다' }));
+  const cut = body.indexOf(Buffer.from('글')) + 1;          // '글' 글자 중간
+  await new Promise((resolve, reject) => {
+    const sock = net.connect(server.address().port, '127.0.0.1', () => {
+      sock.write(`POST /hook HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: ${body.length}\r\nConnection: close\r\n\r\n`);
+      sock.write(body.subarray(0, cut));
+      setTimeout(() => sock.write(body.subarray(cut)), 50);
+    });
+    sock.on('data', () => {}); sock.on('close', resolve); sock.on('error', reject);
+  });
+  assert.equal(store.snapshot().sessions[0].title, '한글 제목입니다');
+});
+
+test('requests with a foreign Host header are rejected (DNS rebinding)', async (t) => {
+  const { base, server } = await boot(t);
+  const port = server.address().port;
+  const r = await new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port, path: '/api/snapshot', headers: { host: 'evil.example' } }, (res) => { res.resume(); resolve(res.statusCode); }).on('error', reject);
+  });
+  assert.equal(r, 403);
+  const ok = await get(base + '/api/snapshot'); assert.equal(ok.status, 200);
+  const lh = await new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port, path: '/api/snapshot', headers: { host: `localhost:${port}` } }, (res) => { res.resume(); resolve(res.statusCode); }).on('error', reject);
+  });
+  assert.equal(lh, 200);
 });

@@ -56,3 +56,18 @@ test('hookCommand exits 0 quickly when the server is down', () => {
   assert.doesNotThrow(() => execSync(hookCommand(1), { input: '{}', shell: '/bin/sh', stdio: ['pipe', 'ignore', 'ignore'] }));
   assert.ok(Date.now() - t0 < 1500, 'finished within 1.5s');
 });
+
+test('install refuses to touch an existing but unparsable settings.json', async () => {
+  const file = await tmpSettings(undefined);
+  const broken = '{ "permissions": { "allow": ["Bash(ls)"] }, }';
+  await fs.writeFile(file, broken);
+  await assert.rejects(() => installHooks(file, { port: 4711 }), /settings\.json.*파싱/);
+  assert.equal(await fs.readFile(file, 'utf8'), broken);
+});
+
+test('install writes a .bak copy of the previous settings before modifying', async () => {
+  const file = await tmpSettings({ permissions: { allow: ['Bash(ls)'] } });
+  await installHooks(file, { port: 4711 });
+  const bak = JSON.parse(await fs.readFile(file + '.bak', 'utf8'));
+  assert.deepEqual(bak, { permissions: { allow: ['Bash(ls)'] } });
+});

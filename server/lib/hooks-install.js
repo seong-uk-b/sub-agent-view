@@ -56,11 +56,18 @@ export async function uninstallHooks(settingsPath) {
   return { removed };
 }
 
+/** 파일이 없으면 {}. 있는데 파싱이 안 되면 절대 덮어쓰지 않도록 throw. */
 async function readSettings(file) {
-  try { const d = JSON.parse(await fs.readFile(file, 'utf8')); return d && typeof d === 'object' ? d : {}; } catch { return {}; }
+  let text;
+  try { text = await fs.readFile(file, 'utf8'); } catch (err) { if (err.code === 'ENOENT') return {}; throw err; }
+  let d;
+  try { d = JSON.parse(text); } catch (err) { throw new Error(`settings.json을 파싱할 수 없어 건드리지 않습니다 (${file}): ${err.message}`); }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) throw new Error(`settings.json이 객체가 아니라 건드리지 않습니다 (${file})`);
+  return d;
 }
 async function writeSettings(file, data) {
   await fs.mkdir(path.dirname(file), { recursive: true });
+  try { await fs.copyFile(file, file + '.bak'); } catch (err) { if (err.code !== 'ENOENT') throw err; }
   const tmp = file + '.sav-tmp';
   await fs.writeFile(tmp, JSON.stringify(data, null, 2) + '\n');
   await fs.rename(tmp, file);

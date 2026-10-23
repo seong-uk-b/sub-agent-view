@@ -16,6 +16,7 @@ export function createServer({ store, webDir, log = () => {} }) {
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
+    if (!hostAllowed(req.headers.host)) return send(res, 403, 'forbidden host');   // DNS 리바인딩 방지
     try {
       if (req.method === 'POST' && url.pathname === '/hook') return await handleHook(req, res);
       if (req.method !== 'GET') return send(res, 405, 'method not allowed');
@@ -23,7 +24,7 @@ export function createServer({ store, webDir, log = () => {} }) {
       if (url.pathname === '/api/snapshot') return json(res, store.snapshot());
       if (url.pathname === '/api/health') {
         const m = process.memoryUsage(); const snap = store.snapshot();
-        return json(res, { rssMB: +(m.rss / 1048576).toFixed(1), heapUsedMB: +(m.heapUsed / 1048576).toFixed(1), sessions: snap.sessions.length, agents: snap.sessions.reduce((n, s) => n + s.agents.length, 0), uptimeSec: Math.floor(process.uptime()) });
+        return json(res, { pid: process.pid, rssMB: +(m.rss / 1048576).toFixed(1), heapUsedMB: +(m.heapUsed / 1048576).toFixed(1), sessions: snap.sessions.length, agents: snap.sessions.reduce((n, s) => n + s.agents.length, 0), uptimeSec: Math.floor(process.uptime()) });
       }
       const m = /^\/api\/agent\/([^/]+)\/([^/]+)\/lines$/.exec(url.pathname);
       if (m) {
@@ -74,11 +75,17 @@ export function createServer({ store, webDir, log = () => {} }) {
   return server;
 }
 
+/** 127.0.0.1 / localhost / [::1] (포트 무관) 만 허용. Host 없음은 거부. */
+function hostAllowed(host) {
+  if (!host) return false;
+  const h = host.replace(/:\d+$/, '').toLowerCase();
+  return h === '127.0.0.1' || h === 'localhost' || h === '[::1]';
+}
 function readBody(req, max) {
   return new Promise((resolve) => {
-    let data = ''; let size = 0;
-    req.on('data', (c) => { size += c.length; if (size <= max) data += c; });
-    req.on('end', () => resolve(size <= max ? data : ''));
+    const chunks = []; let size = 0;
+    req.on('data', (c) => { size += c.length; if (size <= max) chunks.push(c); });
+    req.on('end', () => resolve(size <= max ? Buffer.concat(chunks).toString('utf8') : ''));
     req.on('error', () => resolve(''));
   });
 }

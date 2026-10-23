@@ -43,4 +43,9 @@ test('SKILL.md has name and description frontmatter and starts the bundled serve
   assert.match(fm, /^disable-model-invocation: true$/m);
   assert.match(text, /\$\{CLAUDE_PLUGIN_ROOT\}\/server\/index\.js/);
   assert.match(text, /127\.0\.0\.1:4711/);
+  // 종료 명령이 다른 프로젝트의 server/index.js 를 죽이면 안 된다: pid 기반 종료만 허용
+  assert.doesNotMatch(text, /\|server\/index\.js"/);
+  assert.doesNotMatch(text, /pgrep -f "server\/index\.js"/);
+  assert.match(text, /\/api\/health/);
+  assert.match(text, /\.pid/);
 });

@@ -224,6 +224,38 @@ test('system-injected prompts (starting with <) never become the session title',
   assert.equal(sub(s).title, '결제 리팩터링');
 });
 
+test('foreground Agent call puts main into delegating immediately and keeps it there', () => {
+  const s = makeStore();
+  s.applyHook(hook('UserPromptSubmit', { prompt: '조사해줘' }));
+  s.applyHook(hook('PreToolUse', { tool_name: 'Agent', tool_input: { description: '탐색' }, tool_use_id: 'tA' }));
+  assert.equal(sub(s).main.state, 'delegating');
+  s.applyHook(hook('SubagentStart', { agent_id: 'a1', agent_type: 'Explore' }));
+  s.tick();
+  assert.equal(sub(s).main.state, 'delegating');          // PostToolUse(tA)는 아직 안 옴
+  assert.equal(sub(s).main.toolCalls, 1);
+});
+
+test('hook and transcript for the same tool_use_id add one recent entry', () => {
+  const s = makeStore();
+  s.applyHook(hook('SubagentStart', { agent_id: 'a1', agent_type: 'x' }));
+  s.applyHook(hook('PreToolUse', { agent_id: 'a1', tool_name: 'Read', tool_input: { file_path: 'a.ts' }, tool_use_id: 't1' }));
+  s.applyAgentEvents('s1', 'a1', [{ kind: 'tool_use', id: 't1', name: 'Read', input: { file_path: 'a.ts' }, ts: T0 }]);
+  assert.deepEqual(agentOf(s, 'a1').recent.map((r) => r.text), ['Read a.ts']);
+});
+
+test('SessionStart clears a pending SessionEnd and removal emits session-removed', () => {
+  const s = makeStore();
+  const removed = []; s.on('session-removed', (e) => removed.push(e.sessionId));
+  s.applyHook(hook('SessionStart'));
+  s.applyHook(hook('SessionEnd', { reason: 'other' }));
+  s.applyHook(hook('SessionStart'));                     // --resume
+  s.advance(120_000); s.tick();
+  assert.equal(s.snapshot().sessions.length, 1); assert.deepEqual(removed, []);
+  s.applyHook(hook('SessionEnd', { reason: 'other' }));
+  s.advance(120_000); s.tick();
+  assert.deepEqual(removed, ['s1']);
+});
+
 test('line event is emitted per line', () => {
   const s = makeStore();
   const got = []; s.on('line', (e) => got.push(e));

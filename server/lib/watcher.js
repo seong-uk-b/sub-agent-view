@@ -17,7 +17,16 @@ export class ProjectsWatcher {
     this.pollMs = pollMs; this.scanMs = scanMs; this.staleMs = staleMs; this.usePolling = usePolling;
     this.tailers = new Map();   // filePath → {tailer, sessionId, agentId}
     this.metaMtimes = new Map(); // metaPath → mtimeMs
-    this.timers = []; this.watcher = null; this._reading = new Set();
+    this.removedAt = new Map();  // sessionId → 제거 시각(ms). 그 뒤 파일이 바뀌기 전엔 재등록하지 않는다
+    this.timers = []; this.watcher = null; this._reading = new Set(); this._dirty = new Set();
+    this.store.on('session-removed', ({ sessionId }) => this.#forgetSession(sessionId));
+  }
+
+  /** 파일 mtime과 비교해야 하므로 Store의 (주입 가능한) 시계가 아니라 실제 시각을 쓴다. */
+  #forgetSession(sessionId) {
+    this.removedAt.set(sessionId, Date.now());
+    for (const [file, t] of this.tailers) if (t.sessionId === sessionId) { this.tailers.delete(file); this._dirty.delete(file); }
+    for (const metaPath of [...this.metaMtimes.keys()]) if (metaPath.includes(`${path.sep}${sessionId}${path.sep}`)) this.metaMtimes.delete(metaPath);
   }
 
   async scan() {
@@ -36,6 +45,8 @@ export class ProjectsWatcher {
         if (!info) continue;
         let st; try { st = await fsp.stat(file); } catch { continue; }
         if (now - st.mtimeMs > this.staleMs) continue;
+        const removed = this.removedAt.get(info.sessionId);
+        if (removed != null) { if (st.mtimeMs <= removed) continue; this.removedAt.delete(info.sessionId); }
         await this.#registerSession(info, file);
       }
     }
@@ -73,7 +84,8 @@ export class ProjectsWatcher {
 
   async #read(file) {
     const t = this.tailers.get(file);
-    if (!t || this._reading.has(file)) return;
+    if (!t) return;
+    if (this._reading.has(file)) { this._dirty.add(file); return; }   // 읽는 중 온 변경은 끝난 뒤 한 번 더 읽는다
     this._reading.add(file);
     try {
       const recs = await t.tailer.read();
@@ -87,6 +99,7 @@ export class ProjectsWatcher {
       else this.store.applyAgentEvents(t.sessionId, t.agentId, events);
     } finally {
       this._reading.delete(file);
+      if (this._dirty.delete(file)) await this.#read(file);
     }
   }
 

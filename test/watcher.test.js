@@ -89,3 +89,35 @@ test('session cwd comes from transcript records when no hook has arrived', async
   assert.equal(store.snapshot().sessions[0].cwd, '/home/u/demo');
   w.stop();
 });
+
+test('a session removed after SessionEnd is not re-registered by scan until its transcript changes', async (t) => {
+  const { root, proj } = await makeRoot();
+  let now = Date.now();
+  const store = new Store({ now: () => now, sessionEndGraceMs: 1000 });
+  const w = startWatcher(root, store); t.after(() => w.stop());
+  await w.start();
+  assert.equal(store.snapshot().sessions.length, 1);
+  store.applyHook({ hook_event_name: 'SessionEnd', session_id: 's1', cwd: '/home/u/demo', reason: 'other' });
+  now += 2000; store.tick();
+  assert.equal(store.snapshot().sessions.length, 0);
+  await w.scan();
+  assert.equal(store.snapshot().sessions.length, 0, 'ghost session must not come back');
+  await sleep(20);
+  await fs.appendFile(path.join(proj, 's1.jsonl'), JSON.stringify({ sessionId: 's1', type: 'user', cwd: '/home/u/demo', timestamp: new Date().toISOString(), turnOrigin: 'human', message: { role: 'user', content: '다시 시작' } }) + '\n');
+  await w.scan();
+  assert.equal(store.snapshot().sessions.length, 1, 'new activity re-registers the session');
+  assert.equal(store.snapshot().sessions[0].title, '다시 시작');
+});
+
+test('fs.watch mode picks up rapid consecutive appends without losing lines', async (t) => {
+  const { root, subs } = await makeRoot();
+  const store = new Store();
+  const w = new ProjectsWatcher({ root, store, pollMs: 50, scanMs: 50, usePolling: false }); t.after(() => w.stop());
+  await w.start();
+  const before = store.agentLines('s1', 'a1', 0).length;
+  const file = path.join(subs, 'agent-a1.jsonl');
+  const mk = (i) => JSON.stringify({ sessionId: 's1', agentId: 'a1', isSidechain: true, type: 'assistant', timestamp: new Date().toISOString(), message: { id: 'm' + i, role: 'assistant', content: [{ type: 'text', text: 'line ' + i }], usage: { output_tokens: 1 } } }) + '\n';
+  for (let i = 0; i < 5; i++) await fs.appendFile(file, mk(i));
+  await sleep(400);
+  assert.equal(store.agentLines('s1', 'a1', 0).length, before + 5);
+});

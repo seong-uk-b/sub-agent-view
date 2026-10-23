@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assignSeats, sheetFor, tabTone, sortSessions } from '../web/office.js';
-import { changedFiles } from '../web/terminal.js';
+import { changedFiles, mergeLines, missingAfter, DOM_LINE_CAP } from '../web/terminal.js';
 
 const ag = (id, state, extra = {}) => ({ id, state, startedAt: 0, endedAt: null, ...extra });
 
@@ -55,4 +55,19 @@ test('changedFiles aggregates Edit/Write targets with counts', () => {
     { kind: 'out', text: '+3 -1' },
   ];
   assert.deepEqual(changedFiles(lines), [{ path: 'src/x.ts', edits: 2, kind: 'M' }, { path: 'src/new.ts', edits: 1, kind: 'A' }]);
+});
+
+test('mergeLines appends only newer lines, keeps order, and trims to the cap', () => {
+  const existing = [{ n: 1, text: 'a' }, { n: 2, text: 'b' }];
+  const { lines, added } = mergeLines(existing, [{ n: 2, text: 'dup' }, { n: 3, text: 'c' }, { n: 4, text: 'd' }], 3);
+  assert.deepEqual(lines.map((l) => l.n), [2, 3, 4]);
+  assert.deepEqual(added.map((l) => l.n), [3, 4]);
+  assert.equal(DOM_LINE_CAP, 500);
+});
+
+test('missingAfter tells which line number to fetch from when the server has more', () => {
+  assert.equal(missingAfter([{ n: 7 }], 10), 7);       // 8..10 누락 → after=7
+  assert.equal(missingAfter([{ n: 10 }], 10), null);   // 최신
+  assert.equal(missingAfter([], 3), 0);                // 비어 있으면 처음부터
+  assert.equal(missingAfter([], 0), null);
 });

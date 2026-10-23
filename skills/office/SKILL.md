@@ -23,6 +23,7 @@ allowed-tools: Bash(node *), Bash(curl *), Bash(nohup *), Bash(pgrep *), Bash(ki
 
    ```bash
    nohup node "${CLAUDE_PLUGIN_ROOT}/server/index.js" > /tmp/sub-agent-view.log 2>&1 &
+   echo $! > /tmp/sub-agent-view.pid
    sleep 1 && curl -sf http://127.0.0.1:4711/api/health
    ```
 
@@ -32,10 +33,11 @@ allowed-tools: Bash(node *), Bash(curl *), Bash(nohup *), Bash(pgrep *), Bash(ki
 
    > 사무실이 열렸습니다: http://127.0.0.1:4711 — 이 세션과 다른 세션의 서브에이전트가 캐릭터로 보입니다. 캐릭터를 클릭하면 요약, "상세히"를 누르면 터미널이 열립니다.
 
-4. 끄고 싶다고 하면:
+4. 끄고 싶다고 하면 **이 서버의 pid만** 죽인다. 다른 프로젝트의 `server/index.js`를 패턴으로 잡아 죽이면 안 된다.
 
    ```bash
-   pgrep -f "sub-agent-view/server/index.js|server/index.js" | xargs -r kill
+   PID=$(curl -sf http://127.0.0.1:4711/api/health | sed -n 's/.*"pid":\([0-9]*\).*/\1/p')
+   [ -n "$PID" ] && kill "$PID" || { [ -f /tmp/sub-agent-view.pid ] && kill "$(cat /tmp/sub-agent-view.pid)"; }
    ```
 
 ## 하지 않는 것

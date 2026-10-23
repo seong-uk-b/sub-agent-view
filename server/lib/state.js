@@ -1,6 +1,8 @@
 import { EventEmitter } from 'node:events';
 import path from 'node:path';
 import { classifyTool, toolTarget } from './transcript.js';
+
+const SPAWN_TOOLS = new Set(['Agent', 'Task']);
 import { displayName, sessionFromTranscriptPath } from './paths.js';
 
 /*
@@ -93,7 +95,7 @@ export class Store extends EventEmitter {
     const agentId = p.agent_id || MAIN;
 
     switch (ev) {
-      case 'SessionStart': break;
+      case 'SessionStart': s.endedAt = null; break;
       case 'SessionEnd': s.endedAt = now; break;
       case 'UserPromptSubmit': {
         s.lastPrompt = firstLine(p.prompt) ?? s.lastPrompt;
@@ -227,13 +229,18 @@ export class Store extends EventEmitter {
       }
     }
     for (const [id, s] of this.sessions) {
-      if ((s.endedAt != null && now - s.endedAt >= sessionEndGraceMs) || now - s.lastActivityAt >= sessionStaleMs) this.sessions.delete(id);
+      if ((s.endedAt != null && now - s.endedAt >= sessionEndGraceMs) || now - s.lastActivityAt >= sessionStaleMs) this.#removeSession(id);
     }
     while (this.sessions.size > sessionCap) {
       const oldest = [...this.sessions.values()].sort((x, y) => x.lastActivityAt - y.lastActivityAt)[0];
-      this.sessions.delete(oldest.id);
+      this.#removeSession(oldest.id);
     }
     this.#schedulePatch();
+  }
+
+  #removeSession(id) {
+    if (!this.sessions.delete(id)) return;
+    this.emit('session-removed', { sessionId: id, at: this.opts.now() });
   }
 
   // ───────────────────────── 조회
@@ -289,14 +296,16 @@ export class Store extends EventEmitter {
   #toolStart(a, toolUseId, toolName, toolInput, ts) {
     const id = toolUseId || '';
     const alreadySeen = id && a.seenTools.has(id);
+    const spawning = a.id === MAIN && SPAWN_TOOLS.has(toolName);   // Agent/Task 호출은 "자기 도구"로 치지 않는다 (스펙 §8-1)
     if (!alreadySeen) {
       a.toolCalls++;
-      if (id) { remember(a.seenTools, id); a.pendingTools.add(id); }
+      if (id) { remember(a.seenTools, id); if (!spawning) a.pendingTools.add(id); }
+      a.recent.unshift({ ts, text: `${toolName || ''} ${toolTarget(toolName, toolInput)}`.trim() }); a.recent.length = Math.min(a.recent.length, RECENT_MAX);
     }
     a.tool = toolName || ''; a.target = toolTarget(toolName, toolInput);
-    a.recent.unshift({ ts, text: `${toolName || ''} ${a.target}`.trim() }); a.recent.length = Math.min(a.recent.length, RECENT_MAX);
     if (a.state === 'done' || a.state === 'gone') a.endedAt = null;
     if (toolName === 'AskUserQuestion') { a.waitReason = '사용자 답변 대기'; a.waitDetail = ''; this.#setState(a, 'wait'); }
+    else if (spawning) { if (a.state !== 'wait') this.#setState(a, 'delegating'); }
     else if (a.state !== 'wait' || alreadySeen) this.#setState(a, classifyTool(toolName));
     this.#touch(a, ts);
   }
