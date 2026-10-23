@@ -151,3 +151,26 @@ test('requests with a foreign Host header are rejected (DNS rebinding)', async (
   });
   assert.equal(lh, 200);
 });
+
+test('GET /api/debug exposes hook counters, caught errors, watcher info and raw session state for support', async (t) => {
+  const webDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sav-web-'));
+  await fs.writeFile(path.join(webDir, 'index.html'), '<!doctype html>');
+  const store = new Store();
+  const errors = [{ at: 1, message: 'boom' }];
+  const server = createServer({ store, webDir, debugInfo: () => ({ errors, watcher: { mode: 'polling', root: '/r' } }) });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => new Promise((r) => server.close(r)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  await post(base + '/hook', JSON.stringify({ hook_event_name: 'SessionStart', session_id: 's1', cwd: 'C:\\w\\proj', transcript_path: 'C:\\h\\.claude\\projects\\C--w-proj\\s1.jsonl' }));
+  await post(base + '/hook', JSON.stringify({ hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a1', agent_type: 'Explore' }));
+  const r = await get(base + '/api/debug');
+  assert.equal(r.status, 200);
+  const d = JSON.parse(r.body);
+  assert.equal(d.platform, process.platform); assert.equal(d.node, process.version); assert.equal(d.pid, process.pid);
+  assert.equal(d.hooks.received, 2); assert.deepEqual(d.hooks.byEvent, { SessionStart: 1, SubagentStart: 1 }); assert.equal(typeof d.hooks.lastAt, 'number');
+  assert.deepEqual(d.errors, errors); assert.deepEqual(d.watcher, { mode: 'polling', root: '/r' });
+  const [s] = d.sessions;
+  assert.equal(s.id, 's1'); assert.equal(s.name, 'proj'); assert.equal(s.cwd, 'C:\\w\\proj'); assert.equal(s.projectKey, 'C--w-proj');
+  assert.equal(s.endedAt, null); assert.equal(s.endedSoft, false);
+  assert.deepEqual(s.agents.map((a) => [a.id, a.state, a.lines]), [['main', 'idle', 0], ['a1', 'read', 0]]);
+});

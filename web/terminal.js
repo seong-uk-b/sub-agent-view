@@ -99,6 +99,13 @@ export function createDrawer({ doc, fetchLines, onOpen, onClose }) {
   }
 
   let fetching = false;
+  /** 줄을 못 받아온 상태를 서랍 머리 아래에 표시한다. 서버가 돌아오면 refresh()→catchUp()이 다시 채운다. */
+  function fetchFailed(failed) {
+    let el = term.querySelector('[data-fetch-failed]');
+    if (!failed) { el?.remove(); return; }
+    if (!el) { el = document.createElement('span'); el.className = 'more'; el.setAttribute('data-fetch-failed', ''); term.querySelector('[data-head]')?.insertAdjacentElement('afterend', el); }
+    el.textContent = '… 서버에서 줄을 받지 못했습니다. 서버가 꺼졌거나 연결이 끊겼습니다 (http://127.0.0.1 주소의 /api/debug 로 상태 확인)';
+  }
   /** 서버가 더 가진 줄을 after=로 받아 붙인다 (재접속·열기 직후 공백 메우기) */
   async function catchUp() {
     if (!current || fetching) return;
@@ -107,8 +114,9 @@ export function createDrawer({ doc, fetchLines, onOpen, onClose }) {
     fetching = true;
     try {
       const got = await fetchLines(current.session.id, current.agent.id, after);
-      appendLines(got);
-    } finally { fetching = false; }
+      appendLines(got); fetchFailed(false);
+    } catch { fetchFailed(true); }
+    finally { fetching = false; }
   }
 
   async function open(session, agent) {
@@ -118,7 +126,8 @@ export function createDrawer({ doc, fetchLines, onOpen, onClose }) {
     drawer.classList.add('open'); scrim.classList.add('show');
     lines = [];
     renderAll();
-    const got = await fetchLines(session.id, agent.id, 0);
+    let got = [];
+    try { got = await fetchLines(session.id, agent.id, 0); fetchFailed(false); } catch { fetchFailed(true); }
     if (!current || current.agent.id !== agent.id) return;
     lines = got.slice(-DOM_LINE_CAP);
     renderAll();

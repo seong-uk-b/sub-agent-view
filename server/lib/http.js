@@ -11,8 +11,9 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 const MAX_HOOK_BODY = 2 * 1024 * 1024;
 const PING_MS = 15_000;
 
-export function createServer({ store, webDir, log = () => {} }) {
+export function createServer({ store, webDir, log = () => {}, debugInfo = () => ({}) }) {
   const webRoot = path.resolve(webDir);
+  const hooks = { received: 0, byEvent: {}, lastAt: null };   // /api/debug용 카운터 (본문은 기록하지 않는다)
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
@@ -25,6 +26,9 @@ export function createServer({ store, webDir, log = () => {} }) {
       if (url.pathname === '/api/health') {
         const m = process.memoryUsage(); const snap = store.snapshot();
         return json(res, { pid: process.pid, rssMB: +(m.rss / 1048576).toFixed(1), heapUsedMB: +(m.heapUsed / 1048576).toFixed(1), sessions: snap.sessions.length, agents: snap.sessions.reduce((n, s) => n + s.agents.length, 0), uptimeSec: Math.floor(process.uptime()) });
+      }
+      if (url.pathname === '/api/debug') {
+        return json(res, { platform: process.platform, node: process.version, pid: process.pid, uptimeSec: Math.floor(process.uptime()), now: Date.now(), hooks, ...debugInfo(), sessions: store.debug() });
       }
       const m = /^\/api\/agent\/([^/]+)\/([^/]+)\/lines$/.exec(url.pathname);
       if (m) {
@@ -45,6 +49,8 @@ export function createServer({ store, webDir, log = () => {} }) {
     try { payload = JSON.parse(body); } catch { payload = null; }
     if (payload && typeof payload === 'object') {
       log('hook', payload.hook_event_name, payload.agent_id ? 'agent' : 'main');
+      hooks.received++; hooks.lastAt = Date.now();
+      const ev = String(payload.hook_event_name || '?'); hooks.byEvent[ev] = (hooks.byEvent[ev] || 0) + 1;
       store.applyHook(payload);
     }
     json(res, {});

@@ -285,6 +285,16 @@ export class Store extends EventEmitter {
     return { sessions };
   }
 
+  /** 지원용 원시 상태(/api/debug). 프롬프트·도구 입력 내용은 포함하지 않는다. */
+  debug() {
+    return [...this.sessions.values()].map((s) => ({
+      id: s.id, name: displayName({ cwd: s.cwd, projectKey: s.projectKey }) || s.id.slice(0, 8),
+      cwd: s.cwd, projectKey: s.projectKey, transcriptPath: s.transcriptPath,
+      startedAt: s.startedAt, lastActivityAt: s.lastActivityAt, endedAt: s.endedAt, endedSoft: s.endedSoft, hasPrompt: !!s.lastPrompt,
+      agents: [...s.agents.values()].map((a) => ({ id: a.id, type: a.type, state: a.state, lines: a.lines.length, toolCalls: a.toolCalls, startedAt: a.startedAt, endedAt: a.endedAt, lastEventAt: a.lastEventAt })),
+    }));
+  }
+
   agentLines(sessionId, agentId, after = 0) {
     const a = this.sessions.get(sessionId)?.agents.get(agentId);
     if (!a) return [];

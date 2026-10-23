@@ -18,12 +18,17 @@ export class ProjectsWatcher {
     this.sessionsRoot = sessionsRoot ?? path.join(path.dirname(root), 'sessions');   // ~/.claude/sessions
     this.isPidAlive = isPidAlive;
     this.registrySeen = new Set();  // 레지스트리에 한 번이라도 보였던 sessionId → 파일이 사라지면 종료로 본다
+    this.mode = 'idle'; this.lastScanAt = null; this.lastRegistry = [];   // /api/debug용
     this.pollMs = pollMs; this.scanMs = scanMs; this.staleMs = staleMs; this.usePolling = usePolling;
     this.tailers = new Map();   // filePath → {tailer, sessionId, agentId}
     this.metaMtimes = new Map(); // metaPath → mtimeMs
     this.removedAt = new Map();  // sessionId → 제거 시각(ms). 그 뒤 파일이 바뀌기 전엔 재등록하지 않는다
     this.timers = []; this.watcher = null; this._reading = new Set(); this._dirty = new Set();
     this.store.on('session-removed', ({ sessionId }) => this.#forgetSession(sessionId));
+  }
+
+  debug() {
+    return { mode: this.mode, root: this.root, sessionsRoot: this.sessionsRoot, lastScanAt: this.lastScanAt, tailers: this.tailers.size, registrySeen: [...this.registrySeen], registry: this.lastRegistry };
   }
 
   /** 파일 mtime과 비교해야 하므로 Store의 (주입 가능한) 시계가 아니라 실제 시각을 쓴다. */
@@ -35,6 +40,7 @@ export class ProjectsWatcher {
 
   async scan() {
     const now = Date.now();
+    this.lastScanAt = now;
     let projects = [];
     try { projects = await fsp.readdir(this.root, { withFileTypes: true }); } catch { return; }
     for (const p of projects) {
@@ -64,6 +70,7 @@ export class ProjectsWatcher {
    */
   async #applyRegistry() {
     const reg = await readRegistry(this.sessionsRoot, { isAlive: this.isPidAlive });
+    this.lastRegistry = [...reg].map(([sessionId, e]) => ({ sessionId, pid: e.pid, alive: e.alive }));
     for (const id of this.store.sessions.keys()) {
       const e = reg.get(id);
       if (e) {
@@ -141,7 +148,7 @@ export class ProjectsWatcher {
           else if (file.endsWith('.jsonl') || file.endsWith('.meta.json')) this.scan();
         });
         this.watcher.on('error', () => { this.#fallbackToPolling(); });
-        watching = true;
+        watching = true; this.mode = 'watch';
       } catch { watching = false; }
     }
     if (!watching) this.#fallbackToPolling();
@@ -150,7 +157,7 @@ export class ProjectsWatcher {
 
   #fallbackToPolling() {
     if (this._polling) return;
-    this._polling = true;
+    this._polling = true; this.mode = 'polling';
     this.timers.push(setInterval(() => this.#readAll(), this.pollMs).unref());
   }
 

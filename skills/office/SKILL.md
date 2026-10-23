@@ -30,7 +30,7 @@ allowed-tools: Bash(node *), Bash(curl *), Bash(nohup *), Bash(pgrep *), Bash(ki
    **윈도우(PowerShell)** 에서는 `nohup` 대신:
 
    ```powershell
-   $p = Start-Process node -ArgumentList "`"$env:CLAUDE_PLUGIN_ROOT\server\index.js`"" -WindowStyle Hidden -PassThru
+   $p = Start-Process node -ArgumentList "`"$env:CLAUDE_PLUGIN_ROOT\server\index.js`"" -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\sub-agent-view.log" -RedirectStandardError "$env:TEMP\sub-agent-view.err.log"
    $p.Id | Out-File "$env:TEMP\sub-agent-view.pid"
    Start-Sleep 1; curl.exe -sf http://127.0.0.1:4711/api/health
    ```
@@ -52,6 +52,11 @@ allowed-tools: Bash(node *), Bash(curl *), Bash(nohup *), Bash(pgrep *), Bash(ki
 
 - `~/.claude/settings.json`을 수정하지 않는다 (플러그인 훅이 이미 적용되어 있다).
 - 트랜스크립트 내용을 요약하거나 외부로 보내지 않는다. 서버는 127.0.0.1에만 바인딩된다.
+
+## 화면이 이상할 때 (탭이 안 사라짐, 터미널이 비어 있음, "연결이 끊겼습니다")
+
+1. 서버 생존 확인: `curl -sf http://127.0.0.1:4711/api/health` (윈도우는 `curl.exe`). 응답이 없으면 서버가 죽은 것이다. 로그(`/tmp/sub-agent-view.log` 또는 `$env:TEMP\sub-agent-view*.log`)의 마지막 줄을 사용자에게 보여 주고 2단계로 다시 띄운다.
+2. 살아 있으면 `http://127.0.0.1:4711/api/debug` 를 받아 본다. `hooks.received`가 0이면 훅이 안 들어오는 것(아래 참고), `watcher.registry`가 비어 있으면 `~/.claude/sessions/` 레지스트리를 못 읽는 것, `errors`에 항목이 있으면 그 메시지가 원인이다. 이 JSON에는 프롬프트·코드 내용이 없으므로 그대로 공유해도 된다.
 
 ## 윈도우에서 훅이 안 들어올 때
 

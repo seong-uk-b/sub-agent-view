@@ -20,6 +20,7 @@ node server/index.js                     # http://127.0.0.1:4711
 - 포트 변경: `SAV_PORT=5000 node server/index.js` 또는 `--port 5000`
 - 다른 트랜스크립트 폴더 보기: `--root /path/to/projects`
 - 상태 확인: `curl http://127.0.0.1:4711/api/health`
+- 문제 진단: `http://127.0.0.1:4711/api/debug` (훅 수신 횟수, 세션 레지스트리, 잡힌 예외, 세션별 원시 상태. 프롬프트 내용은 없음)
 
 ## 플러그인으로 설치 (settings.json 수정 없이)
 

@@ -149,3 +149,18 @@ test('without a sessions directory the watcher behaves as before', async (t) => 
   assert.equal(store.snapshot().sessions.length, 1);
   assert.equal(store.sessions.get('s1').endedAt, null);
 });
+
+test('debug() reports mode, roots, last scan time and registry bookkeeping', async (t) => {
+  const { root } = await makeRoot();
+  const sessionsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sav-sess-'));
+  await fs.writeFile(path.join(sessionsRoot, '7.json'), JSON.stringify({ pid: 7, sessionId: 's1', cwd: '/home/u/demo' }));
+  const store = new Store();
+  const w = new ProjectsWatcher({ root, store, sessionsRoot, isPidAlive: () => true, pollMs: 50, scanMs: 50, usePolling: true });
+  t.after(() => w.stop());
+  assert.equal(w.debug().mode, 'idle');
+  await w.scan();
+  const d = w.debug();
+  assert.equal(d.root, root); assert.equal(d.sessionsRoot, sessionsRoot);
+  assert.ok(Date.now() - d.lastScanAt < 5000); assert.equal(d.tailers, 2); assert.deepEqual(d.registrySeen, ['s1']);
+  assert.deepEqual(d.registry, [{ sessionId: 's1', pid: 7, alive: true }]);
+});

@@ -1,6 +1,6 @@
 {
   "name": "sub-agent-view",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Claude Code 서브에이전트를 픽셀 사무실 캐릭터로 보여주는 로컬 대시보드. 훅과 트랜스크립트로 상태를 읽고 /sub-agent-view:office 로 서버를 띄운다.",
   "author": { "name": "seong-uk-b" },
   "keywords": ["subagents", "dashboard", "pixel-art", "monitoring"]

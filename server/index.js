@@ -28,7 +28,15 @@ if (args['install-hooks'] || args['uninstall-hooks']) {
 const root = args.root ?? projectsDir();
 const store = new Store();
 const watcher = new ProjectsWatcher({ root, store });
-const server = createServer({ store, webDir: path.join(HERE, '..', 'web'), log: (...a) => { if (args.verbose) console.log(new Date().toISOString(), ...a); } });
+const errors = [];   // 최근 예외 20건 (/api/debug). 대시보드가 조용히 죽지 않도록 기록만 하고 계속 돈다.
+const recordError = (kind, err) => { errors.push({ at: Date.now(), kind, message: String(err?.stack || err).slice(0, 600) }); if (errors.length > 20) errors.shift(); console.error(new Date().toISOString(), kind, err?.stack || err); };
+process.on('uncaughtException', (e) => recordError('uncaughtException', e));
+process.on('unhandledRejection', (e) => recordError('unhandledRejection', e));
+const server = createServer({
+  store, webDir: path.join(HERE, '..', 'web'),
+  log: (...a) => { if (a[0] === 'error') recordError('request', a[1]); if (args.verbose) console.log(new Date().toISOString(), ...a); },
+  debugInfo: () => ({ errors, watcher: watcher.debug(), argv: process.argv.slice(2) }),
+});
 
 await watcher.start();
 server.listen(port, '127.0.0.1', () => {

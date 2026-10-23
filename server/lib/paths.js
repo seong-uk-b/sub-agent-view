@@ -1,4 +1,5 @@
-import path from 'node:path';
+import pathMod from 'node:path';
+const path = pathMod;
 import os from 'node:os';
 
 /** Claude Code가 트랜스크립트를 쌓는 projects 폴더. CLAUDE_CONFIG_DIR 우선. */
@@ -13,6 +14,7 @@ export function projectsDir(env = process.env) {
  */
 export function sessionFromTranscriptPath(p) {
   if (!p || !p.endsWith('.jsonl')) return null;
+  const path = p.includes('\\') ? pathMod.win32 : pathMod;   // 훅이 윈도우 경로를 보내도(서버는 POSIX) 같은 규칙으로 자른다
   const projectDir = path.dirname(p);
   if (path.basename(projectDir) === 'subagents') return null;   // 서브에이전트 파일은 세션이 아님
   const sessionId = path.basename(p, '.jsonl');
@@ -38,6 +40,6 @@ export function metaPathFor(jsonlPath) {
 
 /** 세션 표시 이름: cwd가 있으면 마지막 폴더, 없으면 projectKey에서 앞의 '-' 제거. */
 export function displayName({ cwd, projectKey } = {}) {
-  if (cwd) return path.basename(cwd);
+  if (cwd) { const seg = cwd.split(/[\\/]+/).filter(Boolean); if (seg.length) return seg[seg.length - 1]; }   // POSIX·Windows 경로 모두
   return (projectKey || '').replace(/^[A-Za-z]--/, '').replace(/^-/, '');   // 'C--Projects-x' / '-home-u-x'
 }
