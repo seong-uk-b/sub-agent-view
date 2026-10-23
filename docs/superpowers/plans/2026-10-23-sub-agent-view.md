@@ -331,3 +331,26 @@ test('displayName', () => { assert.equal(displayName({cwd:'/home/u/sub-agent-vie
 - [ ] **Step 5: 서버를 끈 채 Claude Code를 써서 오류·지연이 없는지 확인** (Review Focus 1).
 - [ ] **Step 5b: 브라우저를 연 채 서버를 껐다 켠다** — 재접속 뒤 캐릭터가 중복되지 않고 탭·상태가 스냅샷대로 복구되는지 확인 (Review Focus 5).
 - [ ] **Step 6: 메모리** — 1시간 사용 후 `ps -o rss= -p <server pid>`가 60MB 이하, 브라우저 탭 작업 관리자 150MB 이하. 결과를 스펙 §5 아래에 "실측" 표로 추가해 커밋.
+
+---
+
+### Task 11: Claude Code 플러그인 패키징 (사용자 추가 요청, 2026-10-23)
+
+근거(공식 문서 확인): 플러그인은 `.claude-plugin/plugin.json`(필수 `name`, kebab-case) + 루트의 `hooks/hooks.json`(최상위 `"hooks"` 래퍼 필수) + `skills/<name>/SKILL.md`. 플러그인이 켜지면 훅이 사용자·프로젝트 훅과 병합되어 settings.json 수정 없이 동작. 설치는 `/plugin marketplace add <owner>/<repo>` → `/plugin install sub-agent-view@<marketplace>`. 같은 저장소가 마켓플레이스가 되려면 `.claude-plugin/marketplace.json`에 `{"name","owner":{"name"},"plugins":[{"name","source":"."}]}`. 플러그인 스킬은 `/sub-agent-view:<skill>`로 호출. 설치 시 `npm install`은 lockfile이 있을 때만 실행되며 우리는 의존성이 없으므로 아무것도 실행되지 않음. `${CLAUDE_PLUGIN_ROOT}`는 훅 명령과 스킬 본문에서 치환됨.
+
+**Files:**
+- Create: `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `hooks/hooks.json`, `skills/office/SKILL.md`, `test/plugin.test.js`
+- Modify: `README.md` (플러그인 설치 절), `server/lib/hooks-install.js` (`hooksJson(port)` export)
+
+**Interfaces:**
+- Produces: `hooksJson(port): {hooks: Record<event, [{hooks:[{type:'command', command, async:true}]}]>}` — settings.json 설치와 같은 항목을 플러그인 형식으로.
+
+- [ ] **Step 1: 실패하는 테스트** `test/plugin.test.js`
+  - `plugin.json has a valid kebab-case name and version`
+  - `hooks/hooks.json wraps the 9 events under "hooks" with async curl commands equal to hooksJson(4711)`
+  - `marketplace.json lists the plugin with source "."`
+  - `SKILL.md has name and description frontmatter`
+- [ ] **Step 2: 실패 확인** — `node --test test/plugin.test.js`
+- [ ] **Step 3: 구현** — `hooksJson` export; 파일 4개 작성. SKILL.md: `/sub-agent-view:office` 호출 시 서버가 떠 있는지 `/api/health`로 확인하고, 없으면 `node ${CLAUDE_PLUGIN_ROOT}/server/index.js`를 백그라운드로 띄운 뒤 `http://127.0.0.1:4711`을 안내. `disable-model-invocation: true`(사용자가 부를 때만).
+- [ ] **Step 4: 통과 확인**; README에 "플러그인으로 설치" 절 추가.
+- [ ] **Step 5: 커밋** — `git commit -m "feat: package as a Claude Code plugin with bundled hooks and skill"`
