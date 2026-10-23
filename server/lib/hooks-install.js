@@ -14,6 +14,13 @@ export function hookCommand(port) {
 }
 
 const order = (ev) => { const i = HOOK_EVENTS.indexOf(ev); return i === -1 ? HOOK_EVENTS.length : i; };
+/** 플러그인 hooks/hooks.json 형식 (settings.json 설치와 같은 항목, 최상위 "hooks" 래퍼). */
+export function hooksJson(port = 4711) {
+  const hooks = {};
+  for (const ev of HOOK_EVENTS) hooks[ev] = [{ hooks: [{ type: 'command', command: hookCommand(port), async: true }] }];
+  return { hooks };
+}
+
 const isOurs = (entry) => Array.isArray(entry?.hooks) && entry.hooks.some((h) => typeof h?.command === 'string' && h.command.includes(TAG));
 
 export async function installHooks(settingsPath, { port = 4711 } = {}) {

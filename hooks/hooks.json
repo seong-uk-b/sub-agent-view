@@ -1,0 +1,104 @@
+{
+  "description": "sub-agent-view: Claude Code 이벤트를 로컬 대시보드(127.0.0.1:4711)로 비동기 전달. 서버가 꺼져 있어도 세션에 영향 없음.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "curl -s -m 1 -X POST -H 'content-type: application/json' --data-binary @- http://127.0.0.1:4711/hook >/dev/null 2>&1 || true # sub-agent-view",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "sub-agent-view",
+  "owner": { "name": "seong-uk-b" },
+  "metadata": { "description": "sub-agent-view 플러그인 마켓플레이스 (이 저장소 자체가 플러그인)" },
+  "plugins": [
+    {
+      "name": "sub-agent-view",
+      "source": ".",
+      "description": "서브에이전트 픽셀 사무실 대시보드",
+      "category": "productivity"
+    }
+  ]
+}

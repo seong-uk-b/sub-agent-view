@@ -21,6 +21,18 @@ node server/index.js                     # http://127.0.0.1:4711
 - 다른 트랜스크립트 폴더 보기: `--root /path/to/projects`
 - 상태 확인: `curl http://127.0.0.1:4711/api/health`
 
+## 플러그인으로 설치 (settings.json 수정 없이)
+
+이 저장소는 Claude Code 플러그인이자 마켓플레이스입니다. 플러그인을 켜면 훅이 자동으로 병합되어 `--install-hooks`가 필요 없습니다.
+
+```
+/plugin marketplace add <github-owner>/sub-agent-view
+/plugin install sub-agent-view@sub-agent-view
+/sub-agent-view:office        # 서버를 띄우고 주소를 안내
+```
+
+업데이트는 `/plugin marketplace update sub-agent-view` 뒤 `/reload-plugins`. 플러그인 훅은 포트 4711로 고정입니다.
+
 ## 데이터는 어디로 가나
 
 아무 데도 가지 않습니다. 서버는 `127.0.0.1`에만 바인딩되고, 훅은 로컬 서버로만 보내며(`curl -m 1 … || true`, 비동기), 서버가 꺼져 있어도 Claude Code는 영향을 받지 않습니다. 프롬프트와 도구 입력은 메모리에만 두고 로그에 쓰지 않습니다.
