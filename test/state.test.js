@@ -83,6 +83,7 @@ test('main becomes delegating when a subagent is alive, idle after Stop, and mai
   assert.equal(sub(s).main.state, 'delegating');
   s.applyHook(hook('PermissionRequest', { tool_name: 'Bash', tool_input: { command: 'git push' } }));
   assert.equal(sub(s).main.state, 'wait'); assert.equal(sub(s).counts.wait, 1);
+  s.applyHook(hook('SubagentStop', { agent_id: 'a1', last_assistant_message: 'ok' }));
   s.applyHook(hook('Stop', { last_assistant_message: '끝' }));
   assert.equal(sub(s).main.state, 'idle');
 });
@@ -201,6 +202,26 @@ test('timestamps from transcripts set startedAt/endedAt and summary falls back t
   assert.equal(a.endedAt, T0 - 100_000);
   assert.equal(a.summary.length, 160); assert.ok(a.summary.startsWith('결론은 이렇습니다.'));
   assert.equal(sub(s).baseElapsed, 600);
+});
+
+test('Stop while subagents are alive keeps main delegating instead of idle', () => {
+  const s = makeStore();
+  s.applyHook(hook('UserPromptSubmit', { prompt: '조사해줘' }));
+  s.applyHook(hook('SubagentStart', { agent_id: 'a1', agent_type: 'Explore' }));
+  s.applyHook(hook('Stop', { last_assistant_message: '' }));
+  assert.equal(sub(s).main.state, 'delegating');
+  s.applyHook(hook('SubagentStop', { agent_id: 'a1', last_assistant_message: 'ok' }));
+  s.applyHook(hook('Stop', { last_assistant_message: '끝' }));
+  assert.equal(sub(s).main.state, 'idle');
+});
+
+test('system-injected prompts (starting with <) never become the session title', () => {
+  const s = makeStore();
+  s.applyHook(hook('UserPromptSubmit', { prompt: '결제 리팩터링' }));
+  s.applyHook(hook('UserPromptSubmit', { prompt: '<task-notification>\n<task-id>x</task-id>' }));
+  assert.equal(sub(s).title, '결제 리팩터링');
+  s.applyMainEvents('s1', [{ kind: 'text', role: 'user', text: '<system-reminder>…', human: true, ts: T0 }]);
+  assert.equal(sub(s).title, '결제 리팩터링');
 });
 
 test('line event is emitted per line', () => {

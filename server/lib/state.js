@@ -96,7 +96,7 @@ export class Store extends EventEmitter {
       case 'SessionStart': break;
       case 'SessionEnd': s.endedAt = now; break;
       case 'UserPromptSubmit': {
-        s.lastPrompt = firstLine(p.prompt);
+        s.lastPrompt = firstLine(p.prompt) ?? s.lastPrompt;
         const m = s.agents.get(MAIN);
         if (m.state === 'idle') this.#setState(m, 'edit');
         m.tool = ''; m.target = '';
@@ -130,7 +130,9 @@ export class Store extends EventEmitter {
       }
       case 'Stop': {
         const m = s.agents.get(MAIN);
-        this.#setState(m, 'idle'); m.pendingTools.clear();
+        m.pendingTools.clear();
+        const alive = [...s.agents.values()].some((a) => a.id !== MAIN && LIVE.has(a.state));
+        this.#setState(m, alive ? 'delegating' : 'idle');
         break;
       }
       default: break;
@@ -160,7 +162,7 @@ export class Store extends EventEmitter {
         case 'text':
           if (e.role === 'assistant') { a.lastTextAt = e.ts; a.lastText = e.text; this.#touch(a, e.ts); }
           if (e.role === 'user' && e.human) {
-            if (a.id === MAIN) s.lastPrompt = firstLine(e.text);
+            if (a.id === MAIN) s.lastPrompt = firstLine(e.text) ?? s.lastPrompt;
             else if (!a.task) a.task = firstChars(e.text, 400);
           }
           this.#pushLine(a, { kind: e.role === 'user' ? 'user' : 'think', text: firstChars(e.text, 4000), ts: e.ts });
@@ -337,6 +339,12 @@ export class Store extends EventEmitter {
   }
 }
 
-function firstLine(text) { return typeof text === 'string' ? text.split('\n')[0].trim().slice(0, PROMPT_MAX) : null; }
+/** 프롬프트 첫 줄. '<'로 시작하는 시스템 주입문(<task-notification> 등)은 제목으로 쓰지 않는다. */
+function firstLine(text) {
+  if (typeof text !== 'string') return null;
+  const line = text.trim().split('\n')[0].trim();
+  if (!line || line.startsWith('<')) return null;
+  return line.slice(0, PROMPT_MAX);
+}
 function firstChars(text, n) { return typeof text === 'string' ? text.slice(0, n) : ''; }
 function remember(set, key) { set.add(key); if (set.size > SEEN_MAX) set.delete(set.values().next().value); }
