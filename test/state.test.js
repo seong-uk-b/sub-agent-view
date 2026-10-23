@@ -273,3 +273,23 @@ test('session and agent caps evict oldest', () => {
   s.tick();
   assert.deepEqual(s.snapshot().sessions.find((x) => x.id === 's3').agents.map((a) => a.id), ['a2', 'a3']);
 });
+
+test('endSession marks the session ended so tick removes it after the grace period; unknown ids are ignored', () => {
+  const s = makeStore({ sessionEndGraceMs: 60_000 });
+  s.applyHook(hook('SessionStart'));
+  s.endSession('nope');
+  s.endSession('s1');
+  s.advance(59_000); s.tick();
+  assert.equal(s.snapshot().sessions.length, 1, 'still shown during grace');
+  s.advance(2_000); s.tick();
+  assert.equal(s.snapshot().sessions.length, 0, 'removed after grace');
+});
+
+test('endSession is undone when the session shows new activity', () => {
+  const s = makeStore({ sessionEndGraceMs: 60_000 });
+  s.applyHook(hook('SessionStart'));
+  s.endSession('s1');
+  s.applyHook(hook('UserPromptSubmit', { prompt: 'again' }));
+  s.advance(120_000); s.tick();
+  assert.equal(s.snapshot().sessions.length, 1, 'activity after endSession keeps the session');
+});

@@ -15,6 +15,9 @@ export const STATES = {
 export const CHIP_ORDER = ['edit', 'read', 'run', 'wait', 'done'];
 export const CHIP_SHORT = { edit: '작성', read: '읽기', run: '실행', wait: '대기', done: '완료' };
 
+/** 탭에 표시할 서브에이전트 수: 사무실을 떠난(gone) 에이전트는 세지 않는다 */
+export function liveAgentCount(session) { return session.agents.filter((a) => a.state !== 'gone').length; }
+
 export const MAIN_DESK = { x: 404, y: 150 };
 export const DESK_SLOTS = [{ x: 66, y: 312 }, { x: 236, y: 312 }, { x: 406, y: 312 }, { x: 576, y: 312 }];
 export const SOFA_SPOTS = [{ x: 800, y: 228 }, { x: 846, y: 228 }, { x: 892, y: 228 }];

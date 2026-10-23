@@ -38,4 +38,6 @@ test('metaPathFor', () => {
 test('displayName', () => {
   assert.equal(displayName({ cwd: '/home/u/sub-agent-view' }), 'sub-agent-view');
   assert.equal(displayName({ projectKey: '-home-u-app' }), 'home-u-app');
+  assert.equal(displayName({ projectKey: 'C--Projects-editorAI' }), 'Projects-editorAI');   // Windows drive prefix
+  assert.equal(displayName({ projectKey: 'D--work' }), 'work');
 });

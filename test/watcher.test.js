@@ -121,3 +121,31 @@ test('fs.watch mode picks up rapid consecutive appends without losing lines', as
   await sleep(400);
   assert.equal(store.agentLines('s1', 'a1', 0).length, before + 5);
 });
+
+test('a registry entry whose pid is dead ends the session; a live one names it from cwd', async (t) => {
+  const { root } = await makeRoot();
+  const proj = path.join(root, '-home-u-demo');
+  // s2: cwd 기록이 없는 트랜스크립트 → 이름은 레지스트리 cwd에서 와야 한다
+  await fs.writeFile(path.join(proj, 's2.jsonl'), JSON.stringify({ type: 'user', timestamp: '2026-10-23T01:00:00Z', message: { role: 'user', content: 'hello' } }) + '\n');
+  const sessionsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sav-sess-'));
+  await fs.writeFile(path.join(sessionsRoot, '1.json'), JSON.stringify({ pid: 1, sessionId: 's1', cwd: '/home/u/demo' }));
+  await fs.writeFile(path.join(sessionsRoot, '2.json'), JSON.stringify({ pid: 2, sessionId: 's2', cwd: '/srv/other-project' }));
+  const store = new Store();
+  const w = new ProjectsWatcher({ root, store, sessionsRoot, isPidAlive: (pid) => pid === 2, pollMs: 50, scanMs: 50, usePolling: true });
+  t.after(() => w.stop());
+  await w.scan();
+  const byId = Object.fromEntries(store.snapshot().sessions.map((s) => [s.id, s]));
+  assert.ok(store.sessions.get('s1').endedAt != null, 's1 (dead pid) is marked ended');
+  assert.equal(store.sessions.get('s2').endedAt, null, 's2 (live pid) stays open');
+  assert.equal(byId.s2.name, 'other-project', 'live session is named from the registry cwd');
+});
+
+test('without a sessions directory the watcher behaves as before', async (t) => {
+  const { root } = await makeRoot();
+  const store = new Store();
+  const w = new ProjectsWatcher({ root, store, sessionsRoot: path.join(root, 'no-such-dir'), pollMs: 50, scanMs: 50, usePolling: true });
+  t.after(() => w.stop());
+  await w.scan();
+  assert.equal(store.snapshot().sessions.length, 1);
+  assert.equal(store.sessions.get('s1').endedAt, null);
+});

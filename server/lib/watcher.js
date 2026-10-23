@@ -4,6 +4,7 @@ import path from 'node:path';
 import { sessionFromTranscriptPath, agentIdFromFile, metaPathFor } from './paths.js';
 import { JsonlTailer } from './jsonl-tail.js';
 import { normalizeRecord, MAIN_LINE_FILTER, readMeta } from './transcript.js';
+import { readRegistry, isPidAlive as defaultIsPidAlive } from './sessions-registry.js';
 
 /*
  * ~/.claude/projects 를 감시해 세션·서브에이전트 트랜스크립트를 Store에 흘린다.
@@ -12,8 +13,11 @@ import { normalizeRecord, MAIN_LINE_FILTER, readMeta } from './transcript.js';
  *   어느 경우든 scanMs마다 scan()과 store.tick().
  */
 export class ProjectsWatcher {
-  constructor({ root, store, pollMs = 1000, scanMs = 10_000, staleMs = 7_200_000, usePolling = false }) {
+  constructor({ root, store, pollMs = 1000, scanMs = 10_000, staleMs = 7_200_000, usePolling = false, sessionsRoot = null, isPidAlive = defaultIsPidAlive }) {
     this.root = root; this.store = store;
+    this.sessionsRoot = sessionsRoot ?? path.join(path.dirname(root), 'sessions');   // ~/.claude/sessions
+    this.isPidAlive = isPidAlive;
+    this.registrySeen = new Set();  // 레지스트리에 한 번이라도 보였던 sessionId → 파일이 사라지면 종료로 본다
     this.pollMs = pollMs; this.scanMs = scanMs; this.staleMs = staleMs; this.usePolling = usePolling;
     this.tailers = new Map();   // filePath → {tailer, sessionId, agentId}
     this.metaMtimes = new Map(); // metaPath → mtimeMs
@@ -48,6 +52,26 @@ export class ProjectsWatcher {
         const removed = this.removedAt.get(info.sessionId);
         if (removed != null) { if (st.mtimeMs <= removed) continue; this.removedAt.delete(info.sessionId); }
         await this.#registerSession(info, file);
+      }
+    }
+    await this.#applyRegistry();
+  }
+
+  /**
+   * `~/.claude/sessions/<pid>.json`(실행 중 세션 레지스트리)로 세션 생사와 cwd를 보강한다.
+   * 항목이 있고 pid가 살아 있으면 cwd로 이름을 채우고, pid가 죽었거나 한 번 보였던 항목이 사라졌으면 약한 종료.
+   * 레지스트리가 없거나(구버전) 해당 세션 항목을 본 적이 없으면 아무것도 하지 않는다.
+   */
+  async #applyRegistry() {
+    const reg = await readRegistry(this.sessionsRoot, { isAlive: this.isPidAlive });
+    for (const id of this.store.sessions.keys()) {
+      const e = reg.get(id);
+      if (e) {
+        this.registrySeen.add(id);
+        if (e.alive) this.store.ensureSession(id, { cwd: e.cwd || undefined });
+        else this.store.endSession(id);
+      } else if (this.registrySeen.has(id)) {
+        this.store.endSession(id);
       }
     }
   }

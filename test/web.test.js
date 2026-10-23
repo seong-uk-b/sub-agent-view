@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { assignSeats, sheetFor, tabTone, sortSessions } from '../web/office.js';
+import { assignSeats, sheetFor, tabTone, sortSessions, liveAgentCount } from '../web/office.js';
 import { changedFiles, mergeLines, missingAfter, DOM_LINE_CAP } from '../web/terminal.js';
 
 const ag = (id, state, extra = {}) => ({ id, state, startedAt: 0, endedAt: null, ...extra });
@@ -77,4 +77,10 @@ test('the "no sessions" overlay is hidden when the hidden attribute is set, so i
   const css = fs.readFileSync(new URL('../web/styles.css', import.meta.url), 'utf8');
   // .empty sets display:grid, which beats the UA [hidden] rule; the sheet must restore display:none for [hidden].
   assert.match(css, /\.empty\[hidden\]\s*\{[^}]*display\s*:\s*none/);
+});
+
+test('liveAgentCount leaves out agents that have already left the office', () => {
+  const agents = [{ state: 'edit' }, { state: 'done' }, { state: 'gone' }, { state: 'gone' }];
+  assert.equal(liveAgentCount({ agents }), 2);
+  assert.equal(liveAgentCount({ agents: [] }), 0);
 });

@@ -1,4 +1,4 @@
-import { STATES, CHIP_ORDER, CHIP_SHORT, createOffice, sortSessions, tabTone, sheetFor, fmt, elapsedOf, avatarHTML, esc } from './office.js';
+import { STATES, CHIP_ORDER, CHIP_SHORT, createOffice, sortSessions, tabTone, liveAgentCount, sheetFor, fmt, elapsedOf, avatarHTML, esc } from './office.js';
 import { createDrawer } from './terminal.js';
 
 const $ = (id) => document.getElementById(id);
@@ -55,8 +55,8 @@ function renderEmpty() {
 }
 function renderTabs() {
   $('stabs').innerHTML = state.sessions.map((s) => { const tone = tabTone(s);
-    return `<button class="stab" role="tab" data-s="${esc(s.id)}" aria-selected="${s.id === state.activeId}"><span class="sdot ${tone === 'wait' ? 'wait' : ''}" style="background:${STATES[tone].raw}"></span>${esc(s.name)}<span class="scount">${s.agents.length}</span></button>`; }).join('');
-  const total = state.sessions.reduce((n, s) => n + s.agents.length, 0), waiting = state.sessions.filter((s) => tabTone(s) === 'wait').length;
+    return `<button class="stab" role="tab" data-s="${esc(s.id)}" aria-selected="${s.id === state.activeId}"><span class="sdot ${tone === 'wait' ? 'wait' : ''}" style="background:${STATES[tone].raw}"></span>${esc(s.name)}<span class="scount">${liveAgentCount(s)}</span></button>`; }).join('');
+  const total = state.sessions.reduce((n, s) => n + liveAgentCount(s), 0), waiting = state.sessions.filter((s) => tabTone(s) === 'wait').length;
   $('total-agents').textContent = state.sessions.length ? `세션 ${state.sessions.length} · 서브에이전트 ${total}` + (waiting ? ` · 확인 필요 ${waiting}` : '') : '';
 }
 function renderStatus(s) {

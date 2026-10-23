@@ -40,7 +40,7 @@ export class Store extends EventEmitter {
     if (!s) {
       s = {
         id: sessionId, cwd: null, projectKey: null, transcriptPath: null,
-        startedAt: now, lastActivityAt: now, endedAt: null, lastPrompt: null,
+        startedAt: now, lastActivityAt: now, endedAt: null, endedSoft: false, lastPrompt: null,
         agents: new Map(), pendingSpawns: new Map(),
       };
       s.agents.set(MAIN, this.#newAgent(MAIN, sessionId, { name: '메인 세션', type: '오케스트레이터', state: 'idle' }));
@@ -71,6 +71,22 @@ export class Store extends EventEmitter {
     return a;
   }
 
+  /**
+   * 외부 근거(세션 레지스트리의 pid 사망 등)로 세션이 끝났다고 표시한다. SessionEnd 훅과 달리 '약한' 종료라
+   * 이후 활동이 보이면 자동으로 취소된다. 유예(sessionEndGraceMs)가 지나면 tick()이 제거한다.
+   */
+  endSession(sessionId) {
+    const s = this.sessions.get(sessionId);
+    if (!s || s.endedAt != null) return;
+    s.endedAt = this.opts.now(); s.endedSoft = true;
+    this.#schedulePatch();
+  }
+
+  #activity(s, ts) {
+    s.lastActivityAt = Math.max(s.lastActivityAt, ts);
+    if (s.endedSoft) { s.endedAt = null; s.endedSoft = false; }
+  }
+
   #newAgent(id, sessionId, info) {
     const now = this.opts.now();
     return {
@@ -90,13 +106,13 @@ export class Store extends EventEmitter {
     if (!p || typeof p !== 'object' || !p.session_id) return;
     const s = this.ensureSession(p.session_id, { cwd: p.cwd, transcriptPath: p.transcript_path });
     const now = this.opts.now();
-    s.lastActivityAt = now;
+    this.#activity(s, now);
     const ev = p.hook_event_name;
     const agentId = p.agent_id || MAIN;
 
     switch (ev) {
-      case 'SessionStart': s.endedAt = null; break;
-      case 'SessionEnd': s.endedAt = now; break;
+      case 'SessionStart': s.endedAt = null; s.endedSoft = false; break;
+      case 'SessionEnd': s.endedAt = now; s.endedSoft = false; break;
       case 'UserPromptSubmit': {
         s.lastPrompt = firstLine(p.prompt) ?? s.lastPrompt;
         const m = s.agents.get(MAIN);
@@ -149,7 +165,7 @@ export class Store extends EventEmitter {
     const s = this.sessions.get(sessionId);
     for (const e of events) {
       if (!e || typeof e !== 'object') continue;
-      s.lastActivityAt = Math.max(s.lastActivityAt, e.ts || 0);
+      this.#activity(s, e.ts || 0);
       if (e.ts && e.ts < a.startedAt) a.startedAt = e.ts;
       if (e.ts && e.ts < s.startedAt) s.startedAt = e.ts;
       switch (e.kind) {
@@ -331,7 +347,7 @@ export class Store extends EventEmitter {
     const t = ts || this.opts.now();
     a.lastEventAt = a.touched ? Math.max(a.lastEventAt, t) : t;   // 첫 이벤트는 과거 시각이어도 그대로
     a.touched = true;
-    const s = this.sessions.get(a.sessionId); if (s) s.lastActivityAt = Math.max(s.lastActivityAt, a.lastEventAt);
+    const s = this.sessions.get(a.sessionId); if (s) this.#activity(s, a.lastEventAt);
   }
 
   #pushLine(a, line) {

@@ -39,5 +39,5 @@ export function metaPathFor(jsonlPath) {
 /** 세션 표시 이름: cwd가 있으면 마지막 폴더, 없으면 projectKey에서 앞의 '-' 제거. */
 export function displayName({ cwd, projectKey } = {}) {
   if (cwd) return path.basename(cwd);
-  return (projectKey || '').replace(/^-/, '');
+  return (projectKey || '').replace(/^[A-Za-z]--/, '').replace(/^-/, '');   // 'C--Projects-x' / '-home-u-x'
 }
