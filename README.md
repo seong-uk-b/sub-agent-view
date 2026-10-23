@@ -26,7 +26,7 @@ node server/index.js                     # http://127.0.0.1:4711
 이 저장소는 Claude Code 플러그인이자 마켓플레이스입니다. 플러그인을 켜면 훅이 자동으로 병합되어 `--install-hooks`가 필요 없습니다.
 
 ```
-/plugin marketplace add <github-owner>/sub-agent-view
+/plugin marketplace add seong-uk-b/sub-agent-view
 /plugin install sub-agent-view@sub-agent-view
 /sub-agent-view:office        # 서버를 띄우고 주소를 안내
 ```
