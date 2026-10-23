@@ -33,11 +33,24 @@ node server/index.js                     # http://127.0.0.1:4711
 
 업데이트는 `/plugin marketplace update sub-agent-view` 뒤 `/reload-plugins`. 플러그인 훅은 포트 4711로 고정입니다.
 
+## 윈도우(네이티브)에서
+
+Node 20 이상이면 서버와 화면은 그대로 동작합니다. PowerShell에서:
+
+```powershell
+Start-Process node -ArgumentList "server\index.js" -WindowStyle Hidden   # 저장소 폴더에서
+curl.exe http://127.0.0.1:4711/api/health
+```
+
+훅은 Claude Code가 **Git Bash**(Git for Windows)로 실행합니다. Git Bash가 없으면 PowerShell로 실행되어 이 훅 한 줄이 조용히 실패하므로 실시간 이벤트가 들어오지 않습니다. 그 경우에도 트랜스크립트 감시와 세션 레지스트리만으로 사무실은 보이고(반응이 몇 초 느릴 뿐), 세션 이름·종료도 잡힙니다. 실시간 반응을 원하면 Git for Windows를 설치하세요.
+
 ## 데이터는 어디로 가나
 
 아무 데도 가지 않습니다. 서버는 `127.0.0.1`에만 바인딩되고, 훅은 로컬 서버로만 보내며(`curl -m 1 … || true`, 비동기), 서버가 꺼져 있어도 Claude Code는 영향을 받지 않습니다. 프롬프트와 도구 입력은 메모리에만 두고 로그에 쓰지 않습니다.
 
 ## 어떻게 동작하나
+
+세션의 이름과 생사는 세 군데서 모읍니다. 훅의 `cwd`, 트랜스크립트의 `cwd` 기록, 그리고 Claude Code가 실행 중인 세션마다 두는 `~/.claude/sessions/<pid>.json`입니다. 레지스트리의 pid가 죽었거나 파일이 사라지면(터미널을 그냥 닫은 경우 등) 60초 뒤 탭이 사라집니다.
 
 - `~/.claude/projects/<프로젝트>/<세션>.jsonl`과 `<세션>/subagents/agent-*.jsonl`을 tail 해 도구 호출·결과·토큰을 읽습니다.
 - Claude Code 훅(SessionStart/End, UserPromptSubmit, PreToolUse, PostToolUse, PermissionRequest, SubagentStart/Stop, Stop)이 `POST /hook`으로 이벤트를 보냅니다.
