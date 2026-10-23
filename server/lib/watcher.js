@@ -13,10 +13,10 @@ import { readRegistry, isPidAlive as defaultIsPidAlive } from './sessions-regist
  *   어느 경우든 scanMs마다 scan()과 store.tick().
  */
 export class ProjectsWatcher {
-  constructor({ root, store, pollMs = 1000, scanMs = 10_000, staleMs = 7_200_000, usePolling = false, sessionsRoot = null, isPidAlive = defaultIsPidAlive }) {
+  constructor({ root, store, pollMs = 1000, scanMs = 10_000, staleMs = 7_200_000, usePolling = false, sessionsRoot = null, isPidAlive = defaultIsPidAlive, registryQuietMs = 90_000 }) {
     this.root = root; this.store = store;
     this.sessionsRoot = sessionsRoot ?? path.join(path.dirname(root), 'sessions');   // ~/.claude/sessions
-    this.isPidAlive = isPidAlive;
+    this.isPidAlive = isPidAlive; this.registryQuietMs = registryQuietMs;
     this.registrySeen = new Set();  // 레지스트리에 한 번이라도 보였던 sessionId → 파일이 사라지면 종료로 본다
     this.mode = 'idle'; this.lastScanAt = null; this.lastRegistry = [];   // /api/debug용
     this.pollMs = pollMs; this.scanMs = scanMs; this.staleMs = staleMs; this.usePolling = usePolling;
@@ -66,9 +66,13 @@ export class ProjectsWatcher {
   /**
    * `~/.claude/sessions/<pid>.json`(실행 중 세션 레지스트리)로 세션 생사와 cwd를 보강한다.
    * 항목이 있고 pid가 살아 있으면 cwd로 이름을 채우고, pid가 죽었거나 한 번 보였던 항목이 사라졌으면 약한 종료.
-   * 레지스트리가 없거나(구버전) 해당 세션 항목을 본 적이 없으면 아무것도 하지 않는다.
+   * 레지스트리 폴더 자체가 없으면(구버전) 아무것도 하지 않는다. 폴더는 있는데 항목이 없는 세션은
+   * (a) 전에 보였던 항목이 사라졌거나 (b) registryQuietMs 넘게 조용하면(서버 재시작 전에 끝난 세션) 약한 종료.
    */
   async #applyRegistry() {
+    let exists = true;
+    try { await fsp.access(this.sessionsRoot); } catch { exists = false; }
+    if (!exists) return;
     const reg = await readRegistry(this.sessionsRoot, { isAlive: this.isPidAlive });
     this.lastRegistry = [...reg].map(([sessionId, e]) => ({ sessionId, pid: e.pid, alive: e.alive }));
     for (const id of this.store.sessions.keys()) {
@@ -77,7 +81,7 @@ export class ProjectsWatcher {
         this.registrySeen.add(id);
         if (e.alive) this.store.ensureSession(id, { cwd: e.cwd || undefined });
         else this.store.endSession(id);
-      } else if (this.registrySeen.has(id)) {
+      } else if (this.registrySeen.has(id) || this.store.opts.now() - this.store.sessions.get(id).lastActivityAt > this.registryQuietMs) {   // 스토어 시계 기준 (테스트에서 주입 가능)
         this.store.endSession(id);
       }
     }

@@ -164,3 +164,28 @@ test('debug() reports mode, roots, last scan time and registry bookkeeping', asy
   assert.ok(Date.now() - d.lastScanAt < 5000); assert.equal(d.tailers, 2); assert.deepEqual(d.registrySeen, ['s1']);
   assert.deepEqual(d.registry, [{ sessionId: 's1', pid: 7, alive: true }]);
 });
+
+test('when the registry directory exists but has no entry for a quiet session, the session is ended (server restart after the process left)', async (t) => {
+  const { root } = await makeRoot();                      // s1 fixture: events dated 2026-10-23T01:00, so it has been quiet for a long time
+  const sessionsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sav-sess-'));   // exists, empty
+  let now = Date.now(); const store = new Store({ now: () => now });
+  const w = new ProjectsWatcher({ root, store, sessionsRoot, pollMs: 50, scanMs: 50, usePolling: true });
+  t.after(() => w.stop());
+  await w.scan();
+  assert.equal(store.sessions.get('s1').endedAt, null, 'just discovered: not ended yet');
+  now += 100_000; await w.scan();
+  assert.ok(store.sessions.get('s1').endedAt != null, 's1 marked ended once quiet for 90s');
+  assert.equal(store.sessions.get('s1').endedSoft, true);
+});
+
+test('a session that is still fresh is not ended just because its registry entry has not appeared yet', async (t) => {
+  const { root } = await makeRoot();
+  const sessionsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'sav-sess-'));
+  const store = new Store();
+  const w = new ProjectsWatcher({ root, store, sessionsRoot, pollMs: 50, scanMs: 50, usePolling: true });
+  t.after(() => w.stop());
+  await w.scan();
+  store.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'hi' });   // 방금 활동 → 종료 취소·유지
+  await w.scan();
+  assert.equal(store.sessions.get('s1').endedAt, null);
+});
